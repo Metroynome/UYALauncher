@@ -1,0 +1,34 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Executables
+*.exe
+*.out
+
+# Compiled Object files
+*.o
+*.obj
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Visual Studio
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+
+# PCSX2 installation (user should add their own)
+emulator/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# User configuration
+config.ini

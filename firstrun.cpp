@@ -7,20 +7,28 @@
 
 #pragma comment(lib, "comctl32.lib")
 
+std::wstring LoadConfigValue(const std::wstring& key);
+
 // Control IDs for first run dialog
-#define IDC_ISO_PATH_EDIT       1001
-#define IDC_ISO_BROWSE_BTN      1002
-#define IDC_PCSX2_PATH_EDIT     1003
-#define IDC_PCSX2_BROWSE_BTN    1004
-#define IDC_REGION_COMBO        1005
-#define IDC_EMBED_CHECK         1006
-#define IDC_OK_BTN              1007
+#define IDC_ISO_PATH_EDIT           1001
+#define IDC_ISO_BROWSE_BTN          1002
+#define IDC_PCSX2_PATH_EDIT         1003
+#define IDC_PCSX2_BROWSE_BTN        1004
+#define IDC_REGION_COMBO            1005
+#define IDC_EMBED_CHECK             1006
+#define IDC_BOOT_MP_CHECK           1007
+#define IDC_WIDESCREEN_CHECK        1008
+#define IDC_PROGRESSIVE_SCAN_CHECK  1009
+#define IDC_OK_BTN                  1010
 
 struct FirstRunConfig {
     std::wstring isoPath;
     std::wstring pcsx2Path;
     std::wstring mapRegion;
     bool embedWindow;
+    bool bootToMultiplayer;
+    bool wideScreen;
+    bool progressiveScan;
     bool cancelled;
 };
 
@@ -94,11 +102,8 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             int y = (GetSystemMetrics(SM_CYSCREEN) - (rc.bottom - rc.top)) / 2;
             SetWindowPos(hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
             
-            // Check embed window by default
-            CheckDlgButton(hwnd, IDC_EMBED_CHECK, BST_CHECKED);
-            
-            // Disable Launch button until both paths are filled
-            EnableWindow(GetDlgItem(hwnd, IDC_OK_BTN), FALSE);
+            // Validate launch button based on pre-populated values (if any)
+            ValidateLaunchButton(hwnd);
             
             return TRUE;
         }
@@ -154,10 +159,10 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     wchar_t region[32];
                     SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)region);
                     g_firstRunConfig.mapRegion = region;
-                    
-                    // Get embed checkbox
                     g_firstRunConfig.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
-                    
+                    g_firstRunConfig.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
+                    g_firstRunConfig.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
+                    g_firstRunConfig.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
                     g_firstRunConfig.cancelled = false;
                     
                     // Destroy the window to exit the message loop
@@ -196,7 +201,7 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
     
     // Create controls with cleaner layout
     int windowWidth = 400;
-    int windowHeight = 250;
+    int windowHeight = 360;
     int y = 20;
     int labelWidth = 130;
     int editX = labelWidth + 10;
@@ -240,7 +245,25 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
     SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"Both");
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
     y += 35;
+
+    // Boot to Multiplayer checkbox (NEW)
+    CreateWindowW(L"STATIC", L"Boot to Multiplayer:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_BOOT_MP_CHECK, hInstance, NULL);
+    CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, BST_CHECKED);
+    y += 35;
     
+    // WideScreen checkbox (NEW)
+    CreateWindowW(L"STATIC", L"Wide Screen:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_WIDESCREEN_CHECK, hInstance, NULL);
+    CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, BST_CHECKED);
+    y += 35;
+
+    // Progressive Scan checkbox (NEW)
+    CreateWindowW(L"STATIC", L"Progressive Scan:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_PROGRESSIVE_SCAN_CHECK, hInstance, NULL);
+    CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
+    y += 35;
+
     // Embed window checkbox
     CreateWindowW(L"STATIC", L"Embed Window:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
     CreateWindowW(L"BUTTON", L"Embed PCSX2 in launcher", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_EMBED_CHECK, hInstance, NULL);
@@ -249,7 +272,62 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
     
     // Launch button
     CreateWindowW(L"BUTTON", L"Launch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, launchButtonX, y, launchButtonWidth, launchButtonHeight, hwnd, (HMENU)IDC_OK_BTN, hInstance, NULL);
-    
+
+    // PRE-POPULATE WITH EXISTING CONFIG VALUES (ADD THIS SECTION)
+    // Load existing config values if they exist
+    std::wstring existingISO = LoadConfigValue(L"DefaultISO");
+    std::wstring existingPCSX2 = LoadConfigValue(L"PCSX2Path");
+    std::wstring existingRegion = LoadConfigValue(L"MapRegion");
+    std::wstring existingEmbed = LoadConfigValue(L"EmbedWindow");
+    std::wstring existingBootMP = LoadConfigValue(L"BootToMultiplayer");
+    std::wstring existingWideScreen = LoadConfigValue(L"WideScreen");
+    std::wstring existingProgressiveScan = LoadConfigValue(L"ProgressiveScan");
+
+    // Set ISO path if exists
+    if (!existingISO.empty())
+        SetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, existingISO.c_str());
+
+    // Set PCSX2 path if exists
+    if (!existingPCSX2.empty())
+        SetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, existingPCSX2.c_str());
+
+    // Set region dropdown if exists
+    if (!existingRegion.empty())
+    {
+        HWND hComboForInit = GetDlgItem(hwnd, IDC_REGION_COMBO);
+        if (existingRegion == L"NTSC")
+            SendMessageW(hComboForInit, CB_SETCURSEL, 0, 0);
+        else if (existingRegion == L"PAL")
+            SendMessageW(hComboForInit, CB_SETCURSEL, 1, 0);
+        else if (existingRegion == L"Both")
+            SendMessageW(hComboForInit, CB_SETCURSEL, 2, 0);
+    }
+
+    // Set embed checkbox if exists (default to true if not set)
+    if (!existingEmbed.empty() && existingEmbed == L"false")
+        CheckDlgButton(hwnd, IDC_EMBED_CHECK, BST_UNCHECKED);
+    else
+        CheckDlgButton(hwnd, IDC_EMBED_CHECK, BST_CHECKED);
+
+    // Set boot to MP checkbox if exists (default to true if not set)
+    if (!existingBootMP.empty() && existingBootMP == L"false")
+        CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, BST_UNCHECKED);
+    else
+        CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, BST_CHECKED);
+
+    // Set widescreen checkbox if exists (default to true if not set)
+    if (!existingWideScreen.empty() && existingWideScreen == L"false")
+        CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, BST_UNCHECKED);
+    else
+        CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, BST_CHECKED);
+
+    // Set progresive scan checkbox if exists (default to true if not set)
+    if (!existingProgressiveScan.empty() && existingProgressiveScan == L"false")
+        CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_UNCHECKED);
+    else
+        CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
+
+
     // Set dialog proc
     SetWindowLongPtrW(hwnd, DWLP_DLGPROC, (LONG_PTR)FirstRunDlgProc);
     

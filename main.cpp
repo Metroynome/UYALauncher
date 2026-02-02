@@ -10,6 +10,7 @@
 #include "firstrun.cpp"
 #include "mapupdater.cpp"
 #include "resource.h"
+#include "patches.h"
 
 // Configuration
 const std::wstring CONFIG_FILE = L"config.ini";
@@ -22,19 +23,15 @@ HWND mainWindow = NULL;
 HWND pcsx2Window = NULL;
 bool consoleEnabled = false; // Global flag for console output
 
-// Hotkey IDs
-#define HOTKEY_RESTART 1
-#define HOTKEY_SAVE_STATE 2
-#define HOTKEY_LOAD_STATE 3
-#define HOTKEY_SCREENSHOT 4
-#define HOTKEY_EXIT 5
-#define HOTKEY_CHANGE_ISO 6
+// Hotkeys
+#define HOTKEY_UPDATE_MAPS  1
 
 // Function declarations
 std::wstring LoadConfigValue(const std::wstring& key);
 void SaveConfigValue(const std::wstring& key, const std::wstring& value);
 std::wstring SelectISOFile();
 bool IsFirstRun();
+bool IsConfigComplete();
 void PreLaunchSetup();
 void LaunchPCSX2(const std::wstring& isoPath);
 void EmbedPCSX2Window();
@@ -44,16 +41,21 @@ void HandleHotkey(int hotkeyId);
 void MonitorProcess();
 void PostShutdownCleanup();
 bool IsProcessRunning(HANDLE processHandle);
+bool CreatePnachFile(const std::wstring& region);
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL WINAPI ConsoleHandler(DWORD signal);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    // Check if this is first run
+    // Check if this is first run OR if config is incomplete
     bool firstRun = IsFirstRun();
+    bool configIncomplete = !firstRun && !IsConfigComplete();
     
-    if (firstRun)
+    if (firstRun || configIncomplete)
     {
+        if (configIncomplete && consoleEnabled)
+            std::cout << "Incomplete config detected - showing setup dialog" << std::endl;
+        
         // Show first-run setup dialog
         if (!ShowFirstRunDialog(hInstance, NULL))
         {
@@ -65,7 +67,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         SaveConfigValue(L"DefaultISO", g_firstRunConfig.isoPath);
         SaveConfigValue(L"PCSX2Path", g_firstRunConfig.pcsx2Path);
         SaveConfigValue(L"MapRegion", g_firstRunConfig.mapRegion);
+        SaveConfigValue(L"BootToMultiplayer", g_firstRunConfig.bootToMultiplayer ? L"true" : L"false");
+        SaveConfigValue(L"WideScreen", g_firstRunConfig.wideScreen ? L"true" : L"false");
+        SaveConfigValue(L"ProgressiveScan", g_firstRunConfig.progressiveScan ? L"true" : L"false");
         SaveConfigValue(L"EmbedWindow", g_firstRunConfig.embedWindow ? L"true" : L"false");
+        
+        // Set patch flags from first-run dialog
+        SetBootToMultiplayer(g_firstRunConfig.bootToMultiplayer);
+        SetWideScreen(g_firstRunConfig.wideScreen);
+        SetProgressiveScan(g_firstRunConfig.progressiveScan);
+        
+        // Manage pnach file
+        std::wstring pcsx2PathForPatches = LoadConfigValue(L"PCSX2Path");
+        ManagePnachPatches(g_firstRunConfig.mapRegion, pcsx2PathForPatches);
     }
     
     // Load configuration
@@ -73,7 +87,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
     std::wstring mapRegion = LoadConfigValue(L"MapRegion");
     if (mapRegion.empty()) mapRegion = L"NTSC";
+
+    std::wstring bootToMPStr = LoadConfigValue(L"BootToMultiplayer");
+    SetBootToMultiplayer(bootToMPStr == L"true");
     
+    std::wstring wideScreenStr = LoadConfigValue(L"WideScreen");
+    SetWideScreen(wideScreenStr == L"true");
+
+    std::wstring progressiveScanStr = LoadConfigValue(L"ProgressiveScan");
+    SetProgressiveScan(progressiveScanStr == L"true");
+
     std::wstring embedWindowStr = LoadConfigValue(L"EmbedWindow");
     bool embedWindow = (embedWindowStr != L"false"); // Default to true
     
@@ -198,13 +221,43 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
     else
     {
-        // Not embedding - just exit after launching PCSX2
+        // Not embedding - run in background for hotkeys
         if (consoleEnabled)
-        {
-            std::cout << "PCSX2 launched. Launcher exiting..." << std::endl;
-            FreeConsole();
-        }
+            std::cout << "PCSX2 launched. Launcher running in background for hotkeys..." << std::endl;
         
+        // Register global hotkeys
+        RegisterHotkeys();
+        
+        // Start process monitor thread
+        running = true;
+        std::thread monitorThread(MonitorProcess);
+
+        // Message loop (for hotkeys)
+        MSG msg = {0};
+        while (GetMessage(&msg, NULL, 0, 0))
+        {
+            if (msg.message == WM_HOTKEY)
+            {
+                HandleHotkey(msg.wParam);
+            }
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        if (consoleEnabled)
+            std::cout << "PCSX2 closed. Exiting launcher..." << std::endl;
+
+        // Wait for monitor thread
+        running = false;
+        if (monitorThread.joinable())
+            monitorThread.join();
+
+        // Cleanup
+        UnregisterHotkeys();
+        
+        if (consoleEnabled)
+            FreeConsole();
+
         return 0;
     }
 }
@@ -533,77 +586,42 @@ void EmbedPCSX2Window()
 
 void RegisterHotkeys()
 {
-    RegisterHotKey(NULL, HOTKEY_RESTART, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'R');
-    RegisterHotKey(NULL, HOTKEY_SAVE_STATE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'S');
-    RegisterHotKey(NULL, HOTKEY_LOAD_STATE, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'L');
-    RegisterHotKey(NULL, HOTKEY_SCREENSHOT, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'P');
-    RegisterHotKey(NULL, HOTKEY_CHANGE_ISO, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'I');
-    RegisterHotKey(NULL, HOTKEY_EXIT, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'Q');
+    // RegisterHotKey(NULL, HOTKEY_UPDATE_MAPS, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'M');
+    RegisterHotKey(NULL, HOTKEY_UPDATE_MAPS, MOD_NOREPEAT, VK_F11);
+
+    if (consoleEnabled)
+        std::cout << "Global hotkeys registered." << std::endl;
 }
 
 void UnregisterHotkeys()
 {
-    UnregisterHotKey(NULL, HOTKEY_RESTART);
-    UnregisterHotKey(NULL, HOTKEY_SAVE_STATE);
-    UnregisterHotKey(NULL, HOTKEY_LOAD_STATE);
-    UnregisterHotKey(NULL, HOTKEY_SCREENSHOT);
-    UnregisterHotKey(NULL, HOTKEY_CHANGE_ISO);
-    UnregisterHotKey(NULL, HOTKEY_EXIT);
+    UnregisterHotKey(NULL, HOTKEY_UPDATE_MAPS);
 }
 
 void HandleHotkey(int hotkeyId)
 {
     switch (hotkeyId)
     {
-        case HOTKEY_RESTART:
-            shouldRestart = true;
-            TerminateProcess(processInfo.hProcess, 0);
-            break;
-
-        case HOTKEY_SAVE_STATE:
-            // Send F1 to PCSX2 window
-            if (pcsx2Window && IsWindow(pcsx2Window))
-            {
-                PostMessage(pcsx2Window, WM_KEYDOWN, VK_F1, 0);
-                PostMessage(pcsx2Window, WM_KEYUP, VK_F1, 0);
-            }
-            break;
-
-        case HOTKEY_LOAD_STATE:
-            if (pcsx2Window && IsWindow(pcsx2Window))
-            {
-                PostMessage(pcsx2Window, WM_KEYDOWN, VK_F3, 0);
-                PostMessage(pcsx2Window, WM_KEYUP, VK_F3, 0);
-            }
-            break;
-
-        case HOTKEY_SCREENSHOT:
-            if (pcsx2Window && IsWindow(pcsx2Window))
-            {
-                PostMessage(pcsx2Window, WM_KEYDOWN, VK_F8, 0);
-                PostMessage(pcsx2Window, WM_KEYUP, VK_F8, 0);
-            }
-            break;
-
-        case HOTKEY_CHANGE_ISO:
+        case HOTKEY_UPDATE_MAPS:  // Add this case
         {
-            std::wstring newISO = SelectISOFile();
-            if (!newISO.empty())
+            if (consoleEnabled)
+                std::cout << "Manual map update triggered..." << std::endl;
+            
+            // Get ISO path and region from config
+            std::wstring isoPath = LoadConfigValue(L"DefaultISO");
+            std::wstring mapRegion = LoadConfigValue(L"MapRegion");
+            
+            if (!isoPath.empty() && !mapRegion.empty())
             {
-                SaveConfigValue(L"DefaultISO", newISO);
-                // ISO changed - restart will load new ISO
+                // Convert to narrow strings for mapupdater
+                std::string isoPathNarrow(isoPath.begin(), isoPath.end());
+                std::string mapRegionNarrow(mapRegion.begin(), mapRegion.end());
+                
+                // Run the map updater
+                UpdateMaps(isoPathNarrow, mapRegionNarrow, mainWindow);
             }
             break;
         }
-
-        case HOTKEY_EXIT:
-            running = false;
-            if (processInfo.hProcess)
-            {
-                TerminateProcess(processInfo.hProcess, 0);
-            }
-            PostQuitMessage(0);
-            break;
     }
 }
 
@@ -691,4 +709,193 @@ BOOL WINAPI ConsoleHandler(DWORD signal)
         return TRUE;
     }
     return FALSE;
+}
+
+bool CreatePnachFile(const std::wstring& region)
+{
+    if (consoleEnabled)
+        std::cout << "Checking for PCSX2 patches folder..." << std::endl;
+    
+    // Get PCSX2 directory
+    std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
+    size_t lastSlash = pcsx2Path.find_last_of(L"\\/");
+    std::wstring pcsx2Dir = pcsx2Path.substr(0, lastSlash);
+    
+    // Location 1: Same directory as PCSX2 exe
+    std::wstring patchesFolder1 = pcsx2Dir + L"\\patches";
+    
+    // Location 2: Documents folder
+    wchar_t documentsPath[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_PERSONAL, NULL, 0, documentsPath);
+    std::wstring patchesFolder2 = std::wstring(documentsPath) + L"\\PCSX2\\patches";
+    
+    // Check which location exists
+    std::wstring patchesFolder;
+    DWORD attr1 = GetFileAttributesW(patchesFolder1.c_str());
+    DWORD attr2 = GetFileAttributesW(patchesFolder2.c_str());
+    
+    bool location1Exists = (attr1 != INVALID_FILE_ATTRIBUTES && (attr1 & FILE_ATTRIBUTE_DIRECTORY));
+    bool location2Exists = (attr2 != INVALID_FILE_ATTRIBUTES && (attr2 & FILE_ATTRIBUTE_DIRECTORY));
+    
+    if (location1Exists)
+    {
+        patchesFolder = patchesFolder1;
+        if (consoleEnabled)
+            std::wcout << L"Found patches folder: " << patchesFolder << std::endl;
+    }
+    else if (location2Exists)
+    {
+        patchesFolder = patchesFolder2;
+        if (consoleEnabled)
+            std::wcout << L"Found patches folder: " << patchesFolder << std::endl;
+    }
+    else
+    {
+        if (consoleEnabled)
+            std::cout << "No patches folder found in either location" << std::endl;
+        return false;
+    }
+    
+    // Determine filename and content based on region
+    std::wstring filename;
+    std::wstring gameTitle;
+    std::wstring patchIdentifier;
+    std::wstring patchContent;
+    
+    if (region == L"NTSC")
+    {
+        filename = L"SCUS-97353_45FE0CC4.pnach";
+        gameTitle = L"Ratchet & Clank: Up Your Arsenal (NTSC-U)";
+        patchIdentifier = L"patch=1,EE,20381590,extended,080E6010";
+        patchContent = 
+            L"\n"
+            L"// boot to multiplayer\n"
+            L"patch=1,EE,20381590,extended,080E6010\n";
+    }
+    else if (region == L"PAL")
+    {
+        filename = L"BBC328EE.pnach";
+        gameTitle = L"Ratchet & Clank 3 (PAL)";
+        patchIdentifier = L"patch=1,EE,20381590,extended,080E6010";
+        patchContent = 
+            L"\n"
+            L"// boot to multiplayer\n"
+            L"// patch=1,EE,20381590,extended,080E6010\n";
+    }
+    else if (region == L"Both")
+    {
+        // Create both files
+        bool ntscResult = CreatePnachFile(L"NTSC");
+        bool palResult = CreatePnachFile(L"PAL");
+        return ntscResult && palResult;
+    }
+    else
+    {
+        return false;
+    }
+    
+    // Full path to pnach file
+    std::wstring pnachPath = patchesFolder + L"\\" + filename;
+    
+    // Check if file exists
+    DWORD fileAttr = GetFileAttributesW(pnachPath.c_str());
+    
+    if (fileAttr == INVALID_FILE_ATTRIBUTES)
+    {
+        // File doesn't exist - create it with full header
+        std::wofstream file(pnachPath);
+        if (!file.is_open())
+        {
+            if (consoleEnabled)
+                std::wcout << L"Failed to create pnach file: " << pnachPath << std::endl;
+            return false;
+        }
+        
+        file << L"gametitle=" << gameTitle << L"\n";
+        file << patchContent;
+        file.close();
+        
+        if (consoleEnabled)
+            std::wcout << L"Created pnach file: " << pnachPath << std::endl;
+        
+        return true;
+    }
+    else
+    {
+        // File exists - check if our patch is already in it
+        std::wifstream readFile(pnachPath);
+        if (!readFile.is_open())
+        {
+            if (consoleEnabled)
+                std::wcout << L"Failed to read existing pnach file: " << pnachPath << std::endl;
+            return false;
+        }
+        
+        // Read entire file and check for our identifier
+        std::wstring fileContents;
+        std::wstring line;
+        bool patchExists = false;
+        
+        while (std::getline(readFile, line))
+        {
+            fileContents += line + L"\n";
+            if (line.find(patchIdentifier) != std::wstring::npos)
+            {
+                patchExists = true;
+            }
+        }
+        readFile.close();
+        
+        if (patchExists)
+        {
+            // Our patch already exists in the file
+            if (consoleEnabled)
+                std::wcout << L"Patch already exists in: " << pnachPath << std::endl;
+            return true;
+        }
+        else
+        {
+            // Append our patch to the existing file
+            std::wofstream appendFile(pnachPath, std::ios::app);
+            if (!appendFile.is_open())
+            {
+                if (consoleEnabled)
+                    std::wcout << L"Failed to append to pnach file: " << pnachPath << std::endl;
+                return false;
+            }
+            
+            appendFile << patchContent;
+            appendFile.close();
+            
+            if (consoleEnabled)
+                std::wcout << L"Appended patch to existing file: " << pnachPath << std::endl;
+            
+            return true;
+        }
+    }
+}
+
+bool IsConfigComplete()
+{
+    // Check all required config values
+    std::wstring isoPath = LoadConfigValue(L"DefaultISO");
+    std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
+    std::wstring mapRegion = LoadConfigValue(L"MapRegion");
+    std::wstring embedWindow = LoadConfigValue(L"EmbedWindow");
+    std::wstring bootToMP = LoadConfigValue(L"BootToMultiplayer");
+    std::wstring wideScreen = LoadConfigValue(L"WideScreen");
+    std::wstring progressiveScan = LoadConfigValue(L"ProgressiveScan");
+
+
+    // If any are missing, config is incomplete
+    if (isoPath.empty() || pcsx2Path.empty() || mapRegion.empty() || 
+        embedWindow.empty() || bootToMP.empty() || wideScreen.empty() ||
+        progressiveScan.empty())
+    {
+        if (consoleEnabled)
+            std::cout << "Config incomplete - missing settings detected" << std::endl;
+        return false;
+    }
+    
+    return true;
 }

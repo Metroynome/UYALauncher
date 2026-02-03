@@ -38,7 +38,7 @@ static PnachPatch g_patches[] = {
     {
         L"// Enable Progressive Scan in Multiplayer",
         L"patch=1,EE,d01d5524,extended,00000101\npatch=1,EE,201d5520,extended,00000001\n",
-        L"// patch=1,EE,20381568,extended,080ED2C2\n",
+        nullptr,
         singleplayer,
         &g_progressiveScan
     },

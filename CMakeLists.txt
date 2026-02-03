@@ -10,7 +10,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR})
 
 # Source files
-add_executable(UYALauncher WIN32 main.cpp patches.cpp resource.rc)
+add_executable(UYALauncher WIN32 
+    main.cpp 
+    config.cpp 
+    patches.cpp 
+    firstrun.cpp 
+    mapupdater.cpp 
+    resource.rc
+)
 
 # Link Windows libraries
 target_link_libraries(UYALauncher)

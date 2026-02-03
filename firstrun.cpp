@@ -1,13 +1,18 @@
-#pragma once
+#include "firstrun.h"
+#include "config.h"
 #include <windows.h>
 #include <commdlg.h>
 #include <commctrl.h>
 #include <string>
-#include "resource.h"  // Add at the very top of firstrun.cpp
+#include "resource.h"
 
 #pragma comment(lib, "comctl32.lib")
 
-std::wstring LoadConfigValue(const std::wstring& key);
+// Define the global config (declared as extern in header)
+FirstRunConfig g_firstRunConfig;  // ADD THIS LINE
+
+// Static variables
+static HWND g_firstRunDlg = NULL;
 
 // Control IDs for first run dialog
 #define IDC_ISO_PATH_EDIT           1001
@@ -20,20 +25,6 @@ std::wstring LoadConfigValue(const std::wstring& key);
 #define IDC_WIDESCREEN_CHECK        1008
 #define IDC_PROGRESSIVE_SCAN_CHECK  1009
 #define IDC_OK_BTN                  1010
-
-struct FirstRunConfig {
-    std::wstring isoPath;
-    std::wstring pcsx2Path;
-    std::wstring mapRegion;
-    bool embedWindow;
-    bool bootToMultiplayer;
-    bool wideScreen;
-    bool progressiveScan;
-    bool cancelled;
-};
-
-static FirstRunConfig g_firstRunConfig;
-static HWND g_firstRunDlg = NULL;
 
 // Validate and enable/disable Launch button
 void ValidateLaunchButton(HWND hwnd) {

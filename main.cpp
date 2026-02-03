@@ -7,13 +7,11 @@
 #include <atomic>
 #include <fstream>
 #include <sstream>
-#include "firstrun.cpp"
-#include "mapupdater.cpp"
+#include "firstrun.h"
+#include "config.h"
+#include "mapupdater.h"
 #include "resource.h"
 #include "patches.h"
-
-// Configuration
-const std::wstring CONFIG_FILE = L"config.ini";
 
 // Global variables for process management
 PROCESS_INFORMATION processInfo = {0};
@@ -27,12 +25,7 @@ bool consoleEnabled = false; // Global flag for console output
 #define HOTKEY_UPDATE_MAPS  1
 
 // Function declarations
-std::wstring LoadConfigValue(const std::wstring& key);
-void SaveConfigValue(const std::wstring& key, const std::wstring& value);
 std::wstring SelectISOFile();
-bool IsFirstRun();
-bool IsConfigComplete();
-void PreLaunchSetup();
 void LaunchPCSX2(const std::wstring& isoPath);
 void EmbedPCSX2Window();
 void RegisterHotkeys();
@@ -97,6 +90,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::wstring progressiveScanStr = LoadConfigValue(L"ProgressiveScan");
     SetProgressiveScan(progressiveScanStr == L"true");
 
+    // Manage pnach patches based on current config (ADD THESE LINES)
+    if (!pcsx2Path.empty()) {
+        ManagePnachPatches(mapRegion, pcsx2Path);
+    }
+
     std::wstring embedWindowStr = LoadConfigValue(L"EmbedWindow");
     bool embedWindow = (embedWindowStr != L"false"); // Default to true
     
@@ -159,9 +157,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // Register global hotkeys
         RegisterHotkeys();
     }
-
-    // Pre-launch setup
-    PreLaunchSetup();
 
     // Update custom maps if ISO is selected
     if (!isoPath.empty()) {
@@ -232,20 +227,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         running = true;
         std::thread monitorThread(MonitorProcess);
 
-        // Message loop (for hotkeys)
+        // Non-blocking message loop with process check
         MSG msg = {0};
-        while (GetMessage(&msg, NULL, 0, 0))
+        while (running)
         {
-            if (msg.message == WM_HOTKEY)
+            // Process any pending Windows messages
+            while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
             {
-                HandleHotkey(msg.wParam);
-            }
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
+                if (msg.message == WM_HOTKEY)
+                    HandleHotkey(msg.wParam);
 
-        if (consoleEnabled)
-            std::cout << "PCSX2 closed. Exiting launcher..." << std::endl;
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+
+            // Check if PCSX2 process has exited
+            if (!IsProcessRunning(processInfo.hProcess))
+            {
+                if (consoleEnabled)
+                    std::cout << "PCSX2 process exited. Closing launcher..." << std::endl;
+                running = false;
+                break;
+            }
+
+            Sleep(100); // avoid busy loop
+        }
 
         // Wait for monitor thread
         running = false;
@@ -299,69 +305,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-std::wstring LoadConfigValue(const std::wstring& key)
-{
-    std::wifstream file(CONFIG_FILE);
-    if (!file.is_open())
-        return L"";
-
-    std::wstring line;
-    std::wstring searchKey = key + L"=";
-    
-    while (std::getline(file, line))
-    {
-        if (line.empty() || line[0] == L';' || line[0] == L'#')
-            continue;
-
-        if (line.find(searchKey) == 0)
-        {
-            file.close();
-            return line.substr(searchKey.length());
-        }
-    }
-
-    file.close();
-    return L"";
-}
-
-void SaveConfigValue(const std::wstring& key, const std::wstring& value)
-{
-    std::wifstream inFile(CONFIG_FILE);
-    std::wstringstream buffer;
-    std::wstring line;
-    bool keyFound = false;
-    std::wstring searchKey = key + L"=";
-
-    if (inFile.is_open())
-    {
-        while (std::getline(inFile, line))
-        {
-            if (!keyFound && line.find(searchKey) == 0)
-            {
-                buffer << key << L"=" << value << L"\n";
-                keyFound = true;
-            }
-            else
-            {
-                buffer << line << L"\n";
-            }
-        }
-        inFile.close();
-    }
-
-    if (!keyFound)
-    {
-        buffer << key << L"=" << value << L"\n";
-    }
-
-    std::wofstream outFile(CONFIG_FILE);
-    if (outFile.is_open())
-    {
-        outFile << buffer.str();
-        outFile.close();
-    }
-}
-
 std::wstring SelectISOFile()
 {
     OPENFILENAMEW ofn;
@@ -386,19 +329,6 @@ std::wstring SelectISOFile()
     }
 
     return L"";
-}
-
-bool IsFirstRun()
-{
-    // Check if config file exists
-    DWORD fileAttr = GetFileAttributesW(CONFIG_FILE.c_str());
-    return (fileAttr == INVALID_FILE_ATTRIBUTES);
-}
-
-void PreLaunchSetup()
-{
-    // Config validation happens in WinMain now
-    // This function kept for backwards compatibility
 }
 
 void LaunchPCSX2(const std::wstring& isoPath)
@@ -627,6 +557,9 @@ void HandleHotkey(int hotkeyId)
 
 void MonitorProcess()
 {
+    if (consoleEnabled)
+        std::cout << "Process monitor thread started." << std::endl;
+
     while (running)
     {
         if (processInfo.hProcess)
@@ -635,6 +568,9 @@ void MonitorProcess()
             
             if (waitResult == WAIT_OBJECT_0)
             {
+                if (consoleEnabled)
+                    std::cout << "PCSX2 process has exited." << std::endl;
+                
                 if (shouldRestart)
                 {
                     shouldRestart = false;
@@ -647,16 +583,22 @@ void MonitorProcess()
                 }
                 else
                 {
+                    // Set running to false to break the message loop
                     running = false;
-                    PostQuitMessage(0);
                 }
+                break;
             }
         }
         else
         {
+            if (consoleEnabled)
+                std::cout << "No process handle, exiting monitor." << std::endl;
             break;
         }
     }
+
+    if (consoleEnabled)
+        std::cout << "Process monitor thread exiting." << std::endl;
 }
 
 void PostShutdownCleanup()
@@ -873,29 +815,4 @@ bool CreatePnachFile(const std::wstring& region)
             return true;
         }
     }
-}
-
-bool IsConfigComplete()
-{
-    // Check all required config values
-    std::wstring isoPath = LoadConfigValue(L"DefaultISO");
-    std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
-    std::wstring mapRegion = LoadConfigValue(L"MapRegion");
-    std::wstring embedWindow = LoadConfigValue(L"EmbedWindow");
-    std::wstring bootToMP = LoadConfigValue(L"BootToMultiplayer");
-    std::wstring wideScreen = LoadConfigValue(L"WideScreen");
-    std::wstring progressiveScan = LoadConfigValue(L"ProgressiveScan");
-
-
-    // If any are missing, config is incomplete
-    if (isoPath.empty() || pcsx2Path.empty() || mapRegion.empty() || 
-        embedWindow.empty() || bootToMP.empty() || wideScreen.empty() ||
-        progressiveScan.empty())
-    {
-        if (consoleEnabled)
-            std::cout << "Config incomplete - missing settings detected" << std::endl;
-        return false;
-    }
-    
-    return true;
 }

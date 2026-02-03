@@ -233,7 +233,7 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
     HWND hCombo = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, editX, y, comboBoxWidth, 100, hwnd, (HMENU)IDC_REGION_COMBO, hInstance, NULL);
     SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"NTSC");
     SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"PAL");
-    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"Both");
+    // SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"Both");
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
     y += 35;
 

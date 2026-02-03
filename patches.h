@@ -2,12 +2,17 @@
 #include <windows.h>
 #include <string>
 
-// Patch definition structure
+enum class PatchTarget {
+    singleplayer,
+    multiplayer
+};
+
 struct PnachPatch {
-    std::wstring description;      // Unique comment to identify this patch
-    std::wstring ntscPatch;       // NTSC patch code
-    std::wstring palPatch;        // PAL patch code
-    bool* enabledFlag;            // Pointer to config flag
+    const wchar_t* description;
+    const wchar_t* ntscPatch;
+    const wchar_t* palPatch;
+    PatchTarget target;
+    bool* enabledFlag;
 };
 
 // Patch management functions

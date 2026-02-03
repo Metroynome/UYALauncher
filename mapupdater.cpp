@@ -1,12 +1,14 @@
-#pragma once
+#include "mapupdater.h"
 #include <windows.h>
 #include <wininet.h>
+#include <commctrl.h>  // ADD THIS LINE
 #include <string>
 #include <vector>
 #include <sstream>
 #include <fstream>
 
 #pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "comctl32.lib")
 
 // Map update structures
 struct MapInfo {

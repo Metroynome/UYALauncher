@@ -1,13 +1,13 @@
 #pragma once
-#include <windows.h>
 #include <string>
 
-// Configuration management
+// Path helpers
+const std::wstring& GetConfigPath();
+
+// Config access
 std::wstring LoadConfigValue(const std::wstring& key);
 void SaveConfigValue(const std::wstring& key, const std::wstring& value);
+
+// State checks
 bool IsFirstRun();
 bool IsConfigComplete();
-void EnsureConfigDefaults();
-
-// Configuration constants
-extern const std::wstring CONFIG_FILE;

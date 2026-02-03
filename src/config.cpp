@@ -1,50 +1,73 @@
 #include "config.h"
 #include <fstream>
 #include <sstream>
+#include <Windows.h>
+#include <shlobj.h>
 
-// Configuration file name
-const std::wstring CONFIG_FILE = L"config.ini";
+#include "config.h"
+#include <fstream>
+#include <sstream>
+#include <Windows.h>
+#include <shlobj.h>
 
-// Load a configuration value
+static std::wstring g_ConfigPath;
+
+// Lazily initialize config path (safe)
+const std::wstring& GetConfigPath()
+{
+    if (!g_ConfigPath.empty())
+        return g_ConfigPath;
+
+    wchar_t appDataPath[MAX_PATH];
+    if (SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath) != S_OK)
+    {
+        g_ConfigPath = L"config.ini"; // fallback
+        return g_ConfigPath;
+    }
+
+    std::wstring configDir = std::wstring(appDataPath) + L"\\UYALauncher";
+
+    CreateDirectoryW(configDir.c_str(), NULL); // OK if exists
+
+    g_ConfigPath = configDir + L"\\config.ini";
+    return g_ConfigPath;
+}
+
+
 std::wstring LoadConfigValue(const std::wstring& key)
 {
-    std::wifstream file(CONFIG_FILE);
+    std::wifstream file(GetConfigPath());
     if (!file.is_open())
         return L"";
 
     std::wstring line;
-    std::wstring searchKey = key + L"=";
-    
+    const std::wstring searchKey = key + L"=";
+
     while (std::getline(file, line))
     {
         if (line.empty() || line[0] == L';' || line[0] == L'#')
             continue;
 
-        if (line.find(searchKey) == 0)
-        {
-            file.close();
+        if (line.rfind(searchKey, 0) == 0)
             return line.substr(searchKey.length());
-        }
     }
 
-    file.close();
     return L"";
 }
 
-// Save a configuration value
 void SaveConfigValue(const std::wstring& key, const std::wstring& value)
 {
-    std::wifstream inFile(CONFIG_FILE);
+    std::wifstream inFile(GetConfigPath());
     std::wstringstream buffer;
     std::wstring line;
     bool keyFound = false;
-    std::wstring searchKey = key + L"=";
+    const std::wstring searchKey = key + L"=";
 
     if (inFile.is_open())
     {
         while (std::getline(inFile, line))
         {
-            if (!keyFound && line.find(searchKey) == 0)
+            if (!keyFound && line.rfind(searchKey, 0) == 0)
             {
                 buffer << key << L"=" << value << L"\n";
                 keyFound = true;
@@ -54,27 +77,20 @@ void SaveConfigValue(const std::wstring& key, const std::wstring& value)
                 buffer << line << L"\n";
             }
         }
-        inFile.close();
     }
 
     if (!keyFound)
-    {
         buffer << key << L"=" << value << L"\n";
-    }
 
-    std::wofstream outFile(CONFIG_FILE);
+    std::wofstream outFile(GetConfigPath());
     if (outFile.is_open())
-    {
         outFile << buffer.str();
-        outFile.close();
-    }
 }
 
-// Check if this is first run (config doesn't exist)
 bool IsFirstRun()
 {
-    DWORD fileAttr = GetFileAttributesW(CONFIG_FILE.c_str());
-    return (fileAttr == INVALID_FILE_ATTRIBUTES);
+    DWORD attrs = GetFileAttributesW(GetConfigPath().c_str());
+    return (attrs == INVALID_FILE_ATTRIBUTES);
 }
 
 // Check if all required config values exist
@@ -96,20 +112,4 @@ bool IsConfigComplete()
     }
     
     return true;
-}
-
-// Add missing config values with defaults
-void EnsureConfigDefaults()
-{
-    if (LoadConfigValue(L"MapRegion").empty())
-        SaveConfigValue(L"MapRegion", L"NTSC");
-    
-    if (LoadConfigValue(L"EmbedWindow").empty())
-        SaveConfigValue(L"EmbedWindow", L"true");
-    
-    if (LoadConfigValue(L"BootToMultiplayer").empty())
-        SaveConfigValue(L"BootToMultiplayer", L"true");
-    
-    // if (LoadConfigValue(L"ShowConsole").empty())
-    //     SaveConfigValue(L"ShowConsole", L"false");
 }

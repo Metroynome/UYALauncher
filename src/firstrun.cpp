@@ -13,6 +13,7 @@ FirstRunConfig g_firstRunConfig;  // ADD THIS LINE
 
 // Static variables
 static HWND g_firstRunDlg = NULL;
+static bool g_requestRelaunch = false;
 
 // Control IDs for first run dialog
 #define IDC_ISO_PATH_EDIT           1001
@@ -24,7 +25,10 @@ static HWND g_firstRunDlg = NULL;
 #define IDC_BOOT_MP_CHECK           1007
 #define IDC_WIDESCREEN_CHECK        1008
 #define IDC_PROGRESSIVE_SCAN_CHECK  1009
-#define IDC_OK_BTN                  1010
+#define IDC_LAUNCH_BTN              1010
+#define IDC_SAVE_BTN                1011
+#define IDC_SAVE_RELAUNCH_BTN       1012
+
 
 // Validate and enable/disable Launch button
 void ValidateLaunchButton(HWND hwnd) {
@@ -36,7 +40,7 @@ void ValidateLaunchButton(HWND hwnd) {
     
     // Enable button only if both paths are filled
     bool enableButton = (wcslen(isoPath) > 0 && wcslen(pcsx2Path) > 0);
-    EnableWindow(GetDlgItem(hwnd, IDC_OK_BTN), enableButton);
+    EnableWindow(GetDlgItem(hwnd, IDC_LAUNCH_BTN), enableButton);
 }
 
 // Browse for ISO file
@@ -85,6 +89,7 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         case WM_INITDIALOG:
         {
             g_firstRunDlg = hwnd;
+            g_requestRelaunch = false;
             
             // Center the dialog
             RECT rc;
@@ -126,7 +131,7 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     return TRUE;
                 }
                 
-                case IDC_OK_BTN:
+                case IDC_LAUNCH_BTN:
                 {
                     // Get ISO path
                     wchar_t isoPath[MAX_PATH];
@@ -162,9 +167,20 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 }
                 
                 case IDCANCEL:
+                {
                     g_firstRunConfig.cancelled = true;
                     DestroyWindow(hwnd);
                     return TRUE;
+                }
+                case IDC_SAVE_BTN:
+                case IDC_SAVE_RELAUNCH_BTN:
+                {
+                    g_requestRelaunch = (LOWORD(wParam) == IDC_SAVE_RELAUNCH_BTN);
+
+                    // Reuse existing OK logic
+                    SendMessageW(hwnd, WM_COMMAND, IDC_LAUNCH_BTN, 0);
+                    return TRUE;
+                }
             }
             break;
         }
@@ -179,7 +195,7 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 }
 
 // Show first run setup dialog
-bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
+bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     WNDCLASSEXW wc = {0};
     wc.cbSize = sizeof(WNDCLASSEXW);
     wc.lpfnWndProc = DefDlgProcW;
@@ -262,9 +278,41 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
     y += 35;
     
     // Launch button
-    CreateWindowW(L"BUTTON", L"Launch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, launchButtonX, y, launchButtonWidth, launchButtonHeight, hwnd, (HMENU)IDC_OK_BTN, hInstance, NULL);
+if (!hotkeyMode)
+{
+    // Normal first run: Launch button
+    CreateWindowW(
+        L"BUTTON",
+        L"Launch",
+        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        launchButtonX, y,
+        launchButtonWidth, launchButtonHeight,
+        hwnd, (HMENU)IDC_LAUNCH_BTN, hInstance, NULL
+    );
+}
+else
+{
+    // Hotkey mode: Save + Save & Relaunch
+    CreateWindowW(
+        L"BUTTON",
+        L"Save",
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+        launchButtonX, y,
+        launchButtonWidth, 30,
+        hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL
+    );
 
-    // PRE-POPULATE WITH EXISTING CONFIG VALUES (ADD THIS SECTION)
+    y += 40;
+
+    CreateWindowW(
+        L"BUTTON",
+        L"Save and Relaunch",
+        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        launchButtonX, y,
+        launchButtonWidth, 30,
+        hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL
+    );
+}
     // Load existing config values if they exist
     std::wstring existingISO = LoadConfigValue(L"DefaultISO");
     std::wstring existingPCSX2 = LoadConfigValue(L"PCSX2Path");
@@ -337,5 +385,5 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent) {
             break;
     }
     
-    return !g_firstRunConfig.cancelled;
+    return (!g_firstRunConfig.cancelled && g_requestRelaunch);
 }

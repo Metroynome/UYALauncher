@@ -23,6 +23,7 @@ bool consoleEnabled = false; // Global flag for console output
 
 // Hotkeys
 #define HOTKEY_UPDATE_MAPS  1
+#define HOTKEY_OPEN_FIRSTRUN  2
 
 // Function declarations
 std::wstring SelectISOFile();
@@ -50,7 +51,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Incomplete config detected - showing setup dialog" << std::endl;
         
         // Show first-run setup dialog
-        if (!ShowFirstRunDialog(hInstance, NULL))
+        if (!ShowFirstRunDialog(hInstance, NULL, false))
         {
             // User cancelled
             return 0;
@@ -518,6 +519,7 @@ void RegisterHotkeys()
 {
     // RegisterHotKey(NULL, HOTKEY_UPDATE_MAPS, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'M');
     RegisterHotKey(NULL, HOTKEY_UPDATE_MAPS, MOD_NOREPEAT, VK_F11);
+    RegisterHotKey(NULL, HOTKEY_OPEN_FIRSTRUN, MOD_NOREPEAT | MOD_CONTROL, VK_F11);
 
     if (consoleEnabled)
         std::cout << "Global hotkeys registered." << std::endl;
@@ -526,13 +528,15 @@ void RegisterHotkeys()
 void UnregisterHotkeys()
 {
     UnregisterHotKey(NULL, HOTKEY_UPDATE_MAPS);
+    UnregisterHotKey(NULL, HOTKEY_OPEN_FIRSTRUN);
+
 }
 
 void HandleHotkey(int hotkeyId)
 {
     switch (hotkeyId)
     {
-        case HOTKEY_UPDATE_MAPS:  // Add this case
+        case HOTKEY_UPDATE_MAPS:
         {
             if (consoleEnabled)
                 std::cout << "Manual map update triggered..." << std::endl;
@@ -550,6 +554,27 @@ void HandleHotkey(int hotkeyId)
                 // Run the map updater
                 UpdateMaps(isoPathNarrow, mapRegionNarrow, mainWindow);
             }
+            break;
+        }
+        case HOTKEY_OPEN_FIRSTRUN:
+        {
+            if (consoleEnabled)
+                std::cout << "Opening First Run configuration..." << std::endl;
+
+            bool relaunch = ShowFirstRunDialog(GetModuleHandle(NULL), mainWindow, true);
+
+            if (relaunch)
+            {
+                if (consoleEnabled)
+                    std::cout << "Config saved, relaunching PCSX2..." << std::endl;
+
+                shouldRestart = true;
+                if (processInfo.hProcess)
+                    TerminateProcess(processInfo.hProcess, 0);
+            }
+            else if (consoleEnabled)
+                std::cout << "Config saved (no relaunch)." << std::endl;
+
             break;
         }
     }

@@ -18,4 +18,4 @@ struct FirstRunConfig {
 extern FirstRunConfig g_firstRunConfig;
 
 // Show first-run setup dialog
-bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent);
+bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode);

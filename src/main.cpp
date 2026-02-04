@@ -563,17 +563,43 @@ void HandleHotkey(int hotkeyId)
 
             bool relaunch = ShowFirstRunDialog(GetModuleHandle(NULL), mainWindow, true);
 
-            if (relaunch)
+            if (!g_firstRunConfig.cancelled)
             {
-                if (consoleEnabled)
-                    std::cout << "Config saved, relaunching PCSX2..." << std::endl;
+                // Save configuration from dialog
+                SaveConfigValue(L"DefaultISO", g_firstRunConfig.isoPath);
+                SaveConfigValue(L"PCSX2Path", g_firstRunConfig.pcsx2Path);
+                SaveConfigValue(L"MapRegion", g_firstRunConfig.mapRegion);
+                SaveConfigValue(L"BootToMultiplayer", g_firstRunConfig.bootToMultiplayer ? L"true" : L"false");
+                SaveConfigValue(L"WideScreen", g_firstRunConfig.wideScreen ? L"true" : L"false");
+                SaveConfigValue(L"ProgressiveScan", g_firstRunConfig.progressiveScan ? L"true" : L"false");
+                SaveConfigValue(L"EmbedWindow", g_firstRunConfig.embedWindow ? L"true" : L"false");
 
-                shouldRestart = true;
-                if (processInfo.hProcess)
-                    TerminateProcess(processInfo.hProcess, 0);
+                // Set patch flags from dialog
+                SetBootToMultiplayer(g_firstRunConfig.bootToMultiplayer);
+                SetWideScreen(g_firstRunConfig.wideScreen);
+                SetProgressiveScan(g_firstRunConfig.progressiveScan);
+
+                // Manage pnach patches with new settings
+                std::wstring pcsx2PathForPatches = LoadConfigValue(L"PCSX2Path");
+                ManagePnachPatches(g_firstRunConfig.mapRegion, pcsx2PathForPatches);
+
+                if (consoleEnabled)
+                    std::cout << "Configuration saved." << std::endl;
+
+                if (relaunch)
+                {
+                    if (consoleEnabled)
+                        std::cout << "Relaunching PCSX2..." << std::endl;
+
+                    shouldRestart = true;
+                    if (processInfo.hProcess)
+                        TerminateProcess(processInfo.hProcess, 0);
+                }
             }
             else if (consoleEnabled)
-                std::cout << "Config saved (no relaunch)." << std::endl;
+            {
+                std::cout << "Configuration cancelled." << std::endl;
+            }
 
             break;
         }

@@ -58,22 +58,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
         
         // Save configuration from first-run dialog
-        SaveConfigValue(L"DefaultISO", g_firstRunConfig.isoPath);
-        SaveConfigValue(L"PCSX2Path", g_firstRunConfig.pcsx2Path);
-        SaveConfigValue(L"MapRegion", g_firstRunConfig.mapRegion);
-        SaveConfigValue(L"BootToMultiplayer", g_firstRunConfig.bootToMultiplayer ? L"true" : L"false");
-        SaveConfigValue(L"WideScreen", g_firstRunConfig.wideScreen ? L"true" : L"false");
-        SaveConfigValue(L"ProgressiveScan", g_firstRunConfig.progressiveScan ? L"true" : L"false");
-        SaveConfigValue(L"EmbedWindow", g_firstRunConfig.embedWindow ? L"true" : L"false");
+        SaveConfigValue(L"DefaultISO", config.firstRun.isoPath);
+        SaveConfigValue(L"PCSX2Path", config.firstRun.pcsx2Path);
+        SaveConfigValue(L"MapRegion", config.firstRun.mapRegion);
+        SaveConfigValue(L"BootToMultiplayer", config.firstRun.bootToMultiplayer ? L"true" : L"false");
+        SaveConfigValue(L"WideScreen", config.firstRun.wideScreen ? L"true" : L"false");
+        SaveConfigValue(L"ProgressiveScan", config.firstRun.progressiveScan ? L"true" : L"false");
+        SaveConfigValue(L"EmbedWindow", config.firstRun.embedWindow ? L"true" : L"false");
         
         // Set patch flags from first-run dialog
-        SetBootToMultiplayer(g_firstRunConfig.bootToMultiplayer);
-        SetWideScreen(g_firstRunConfig.wideScreen);
-        SetProgressiveScan(g_firstRunConfig.progressiveScan);
+        SetBootToMultiplayer(config.firstRun.bootToMultiplayer);
+        SetWideScreen(config.firstRun.wideScreen);
+        SetProgressiveScan(config.firstRun.progressiveScan);
         
         // Manage pnach file
         std::wstring pcsx2PathForPatches = LoadConfigValue(L"PCSX2Path");
-        ManagePnachPatches(g_firstRunConfig.mapRegion, pcsx2PathForPatches);
+        ManagePnachPatches(config.firstRun.mapRegion, pcsx2PathForPatches);
     }
     
     // Load configuration
@@ -563,25 +563,25 @@ void HandleHotkey(int hotkeyId)
 
             bool relaunch = ShowFirstRunDialog(GetModuleHandle(NULL), mainWindow, true);
 
-            if (!g_firstRunConfig.cancelled)
+            if (!config.firstRun.cancelled)
             {
                 // Save configuration from dialog
-                SaveConfigValue(L"DefaultISO", g_firstRunConfig.isoPath);
-                SaveConfigValue(L"PCSX2Path", g_firstRunConfig.pcsx2Path);
-                SaveConfigValue(L"MapRegion", g_firstRunConfig.mapRegion);
-                SaveConfigValue(L"BootToMultiplayer", g_firstRunConfig.bootToMultiplayer ? L"true" : L"false");
-                SaveConfigValue(L"WideScreen", g_firstRunConfig.wideScreen ? L"true" : L"false");
-                SaveConfigValue(L"ProgressiveScan", g_firstRunConfig.progressiveScan ? L"true" : L"false");
-                SaveConfigValue(L"EmbedWindow", g_firstRunConfig.embedWindow ? L"true" : L"false");
+                SaveConfigValue(L"DefaultISO", config.firstRun.isoPath);
+                SaveConfigValue(L"PCSX2Path", config.firstRun.pcsx2Path);
+                SaveConfigValue(L"MapRegion", config.firstRun.mapRegion);
+                SaveConfigValue(L"BootToMultiplayer", config.firstRun.bootToMultiplayer ? L"true" : L"false");
+                SaveConfigValue(L"WideScreen", config.firstRun.wideScreen ? L"true" : L"false");
+                SaveConfigValue(L"ProgressiveScan", config.firstRun.progressiveScan ? L"true" : L"false");
+                SaveConfigValue(L"EmbedWindow", config.firstRun.embedWindow ? L"true" : L"false");
 
                 // Set patch flags from dialog
-                SetBootToMultiplayer(g_firstRunConfig.bootToMultiplayer);
-                SetWideScreen(g_firstRunConfig.wideScreen);
-                SetProgressiveScan(g_firstRunConfig.progressiveScan);
+                SetBootToMultiplayer(config.firstRun.bootToMultiplayer);
+                SetWideScreen(config.firstRun.wideScreen);
+                SetProgressiveScan(config.firstRun.progressiveScan);
 
                 // Manage pnach patches with new settings
                 std::wstring pcsx2PathForPatches = LoadConfigValue(L"PCSX2Path");
-                ManagePnachPatches(g_firstRunConfig.mapRegion, pcsx2PathForPatches);
+                ManagePnachPatches(config.firstRun.mapRegion, pcsx2PathForPatches);
 
                 if (consoleEnabled)
                     std::cout << "Configuration saved." << std::endl;

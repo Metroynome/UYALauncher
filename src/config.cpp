@@ -4,17 +4,12 @@
 #include <Windows.h>
 #include <shlobj.h>
 
-#include "config.h"
-#include <fstream>
-#include <sstream>
-#include <Windows.h>
-#include <shlobj.h>
-
+Configuration config;
 static std::wstring g_ConfigPath;
 
-LauncherConfig LoadConfig()
+Configuration LoadConfig()
 {
-    LauncherConfig config;
+    Configuration config;
     config.isoPath = LoadConfigValue(L"DefaultISO");
     config.pcsx2Path = LoadConfigValue(L"PCSX2Path");
     config.mapRegion = LoadConfigValue(L"MapRegion");
@@ -22,11 +17,10 @@ LauncherConfig LoadConfig()
     config.bootToMultiplayer = (LoadConfigValue(L"BootToMultiplayer") == L"true");
     config.wideScreen = (LoadConfigValue(L"WideScreen") == L"true");
     config.progressiveScan = (LoadConfigValue(L"ProgressiveScan") == L"true");
-    config.showConsole = (LoadConfigValue(L"ShowConsole") == L"true");
     
     // showConsole is optional.  defaults to false.
     std::wstring showConsoleStr = LoadConfigValue(L"ShowConsole");
-    config.showConsole = (!showConsoleStr.empty() && (showConsoleStr == L"true" || showConsoleStr == L"True" || showConsoleStr == L"1"));
+    config.showConsole = (!showConsoleStr.empty() && showConsoleStr == L"true");
 
     // Set defaults
     if (config.mapRegion.empty()) config.mapRegion = L"NTSC";
@@ -34,7 +28,7 @@ LauncherConfig LoadConfig()
     return config;
 }
 
-void SaveConfig(const LauncherConfig& config)
+void SaveConfig(const Configuration& config)
 {
     SaveConfigValue(L"DefaultISO", config.isoPath);
     SaveConfigValue(L"PCSX2Path", config.pcsx2Path);
@@ -43,6 +37,7 @@ void SaveConfig(const LauncherConfig& config)
     SaveConfigValue(L"BootToMultiplayer", config.bootToMultiplayer ? L"true" : L"false");
     SaveConfigValue(L"WideScreen", config.wideScreen ? L"true" : L"false");
     SaveConfigValue(L"ProgressiveScan", config.progressiveScan ? L"true" : L"false");
+    SaveConfigValue(L"ShowConsole", config.showConsole ? L"true" : L"false");
 }
 
 const std::wstring& GetConfigPath()
@@ -53,18 +48,16 @@ const std::wstring& GetConfigPath()
     wchar_t appDataPath[MAX_PATH];
     if (SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath) != S_OK)
     {
-        g_ConfigPath = L"config.ini"; // fallback
+        g_ConfigPath = L"config.ini";
         return g_ConfigPath;
     }
 
     std::wstring configDir = std::wstring(appDataPath) + L"\\UYALauncher";
-
-    CreateDirectoryW(configDir.c_str(), NULL); // OK if exists
+    CreateDirectoryW(configDir.c_str(), NULL);
 
     g_ConfigPath = configDir + L"\\config.ini";
     return g_ConfigPath;
 }
-
 
 std::wstring LoadConfigValue(const std::wstring& key)
 {
@@ -127,20 +120,13 @@ bool IsFirstRun()
 
 bool IsConfigComplete()
 {
-    std::wstring isoPath = LoadConfigValue(L"DefaultISO");
-    std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
-    std::wstring mapRegion = LoadConfigValue(L"MapRegion");
-    std::wstring embedWindow = LoadConfigValue(L"EmbedWindow");
-    std::wstring bootToMP = LoadConfigValue(L"BootToMultiplayer");
-    std::wstring wideScreen = LoadConfigValue(L"WideScreen");
-    std::wstring progressiveScan = LoadConfigValue(L"ProgressiveScan");
-    
-    if (isoPath.empty() || pcsx2Path.empty() || mapRegion.empty() || 
-        embedWindow.empty() || bootToMP.empty() || wideScreen.empty() ||
-        progressiveScan.empty())
-    {
-        return false;
-    }
-    
+    if (LoadConfigValue(L"DefaultISO").empty()) return false;
+    if (LoadConfigValue(L"PCSX2Path").empty()) return false;
+    if (LoadConfigValue(L"MapRegion").empty()) return false;
+    if (LoadConfigValue(L"EmbedWindow").empty()) return false;
+    if (LoadConfigValue(L"BootToMultiplayer").empty()) return false;
+    if (LoadConfigValue(L"WideScreen").empty()) return false;
+    if (LoadConfigValue(L"ProgressiveScan").empty()) return false;
+
     return true;
 }

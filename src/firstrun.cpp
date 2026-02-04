@@ -8,9 +8,6 @@
 
 #pragma comment(lib, "comctl32.lib")
 
-// Define the global config (declared as extern in header)
-FirstRunConfig g_firstRunConfig;  // ADD THIS LINE
-
 // Static variables
 static HWND g_firstRunDlg = NULL;
 static bool g_requestRelaunch = false;
@@ -136,15 +133,15 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     // Get ISO path
                     wchar_t isoPath[MAX_PATH];
                     GetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, isoPath, MAX_PATH);
-                    g_firstRunConfig.isoPath = isoPath;
+                    config.firstRun.isoPath = isoPath;
                     
                     // Get PCSX2 path
                     wchar_t pcsx2Path[MAX_PATH];
                     GetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, pcsx2Path, MAX_PATH);
-                    g_firstRunConfig.pcsx2Path = pcsx2Path;
+                    config.firstRun.pcsx2Path = pcsx2Path;
                     
                     // Validate paths
-                    if (g_firstRunConfig.isoPath.empty() || g_firstRunConfig.pcsx2Path.empty()) {
+                    if (config.firstRun.isoPath.empty() || config.firstRun.pcsx2Path.empty()) {
                         MessageBoxW(hwnd, L"Please select both ISO and PCSX2 paths.", L"Error", MB_OK | MB_ICONERROR);
                         return TRUE;
                     }
@@ -154,12 +151,12 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     int sel = SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
                     wchar_t region[32];
                     SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)region);
-                    g_firstRunConfig.mapRegion = region;
-                    g_firstRunConfig.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
-                    g_firstRunConfig.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
-                    g_firstRunConfig.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
-                    g_firstRunConfig.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
-                    g_firstRunConfig.cancelled = false;
+                    config.firstRun.mapRegion = region;
+                    config.firstRun.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
+                    config.firstRun.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
+                    config.firstRun.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
+                    config.firstRun.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
+                    config.firstRun.cancelled = false;
                     
                     // Destroy the window to exit the message loop
                     DestroyWindow(hwnd);
@@ -168,7 +165,7 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 
                 case IDCANCEL:
                 {
-                    g_firstRunConfig.cancelled = true;
+                    config.firstRun.cancelled = true;
                     DestroyWindow(hwnd);
                     return TRUE;
                 }
@@ -186,7 +183,7 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         }
         
         case WM_CLOSE:
-            g_firstRunConfig.cancelled = true;
+            config.firstRun.cancelled = true;
             DestroyWindow(hwnd);
             return TRUE;
     }
@@ -385,5 +382,5 @@ else
             break;
     }
     
-    return (!g_firstRunConfig.cancelled && g_requestRelaunch);
+    return (!config.firstRun.cancelled && g_requestRelaunch);
 }

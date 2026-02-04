@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-struct LauncherConfig {
+struct BaseConfig {
     std::wstring isoPath;
     std::wstring pcsx2Path;
     std::wstring mapRegion;
@@ -12,9 +12,17 @@ struct LauncherConfig {
     bool showConsole;
 };
 
+struct Configuration : BaseConfig {
+    struct FirstRun : BaseConfig {
+        bool cancelled = false;
+    } firstRun;
+};
+
+extern Configuration config;
+
 const std::wstring& GetConfigPath();
-LauncherConfig LoadConfig();
-void SaveConfig(const LauncherConfig& config);
+Configuration LoadConfig();
+void SaveConfig(const Configuration& config);
 std::wstring LoadConfigValue(const std::wstring& key);
 void SaveConfigValue(const std::wstring& key, const std::wstring& value);
 bool IsFirstRun();

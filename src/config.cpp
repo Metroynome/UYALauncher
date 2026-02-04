@@ -12,7 +12,39 @@
 
 static std::wstring g_ConfigPath;
 
-// Lazily initialize config path (safe)
+LauncherConfig LoadConfig()
+{
+    LauncherConfig config;
+    config.isoPath = LoadConfigValue(L"DefaultISO");
+    config.pcsx2Path = LoadConfigValue(L"PCSX2Path");
+    config.mapRegion = LoadConfigValue(L"MapRegion");
+    config.embedWindow = (LoadConfigValue(L"EmbedWindow") != L"false");
+    config.bootToMultiplayer = (LoadConfigValue(L"BootToMultiplayer") == L"true");
+    config.wideScreen = (LoadConfigValue(L"WideScreen") == L"true");
+    config.progressiveScan = (LoadConfigValue(L"ProgressiveScan") == L"true");
+    config.showConsole = (LoadConfigValue(L"ShowConsole") == L"true");
+    
+    // showConsole is optional.  defaults to false.
+    std::wstring showConsoleStr = LoadConfigValue(L"ShowConsole");
+    config.showConsole = (!showConsoleStr.empty() && (showConsoleStr == L"true" || showConsoleStr == L"True" || showConsoleStr == L"1"));
+
+    // Set defaults
+    if (config.mapRegion.empty()) config.mapRegion = L"NTSC";
+    
+    return config;
+}
+
+void SaveConfig(const LauncherConfig& config)
+{
+    SaveConfigValue(L"DefaultISO", config.isoPath);
+    SaveConfigValue(L"PCSX2Path", config.pcsx2Path);
+    SaveConfigValue(L"MapRegion", config.mapRegion);
+    SaveConfigValue(L"EmbedWindow", config.embedWindow ? L"true" : L"false");
+    SaveConfigValue(L"BootToMultiplayer", config.bootToMultiplayer ? L"true" : L"false");
+    SaveConfigValue(L"WideScreen", config.wideScreen ? L"true" : L"false");
+    SaveConfigValue(L"ProgressiveScan", config.progressiveScan ? L"true" : L"false");
+}
+
 const std::wstring& GetConfigPath()
 {
     if (!g_ConfigPath.empty())
@@ -93,7 +125,6 @@ bool IsFirstRun()
     return (attrs == INVALID_FILE_ATTRIBUTES);
 }
 
-// Check if all required config values exist
 bool IsConfigComplete()
 {
     std::wstring isoPath = LoadConfigValue(L"DefaultISO");

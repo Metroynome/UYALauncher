@@ -77,31 +77,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
     
     // Load configuration
-    std::wstring isoPath = LoadConfigValue(L"DefaultISO");
-    std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
-    std::wstring mapRegion = LoadConfigValue(L"MapRegion");
+    config = LoadConfig();
+    std::wstring isoPath = config.isoPath;
+    std::wstring pcsx2Path = config.pcsx2Path;
+    std::wstring mapRegion = config.mapRegion;
     if (mapRegion.empty()) mapRegion = L"NTSC";
 
-    std::wstring bootToMPStr = LoadConfigValue(L"BootToMultiplayer");
-    SetBootToMultiplayer(bootToMPStr == L"true");
-    
-    std::wstring wideScreenStr = LoadConfigValue(L"WideScreen");
-    SetWideScreen(wideScreenStr == L"true");
-
-    std::wstring progressiveScanStr = LoadConfigValue(L"ProgressiveScan");
-    SetProgressiveScan(progressiveScanStr == L"true");
+    SetBootToMultiplayer(config.bootToMultiplayer);
+    SetWideScreen(config.wideScreen);
+    SetProgressiveScan(config.progressiveScan);
 
     // Manage pnach patches based on current config (ADD THESE LINES)
     if (!pcsx2Path.empty()) {
         ManagePnachPatches(mapRegion, pcsx2Path);
     }
 
-    std::wstring embedWindowStr = LoadConfigValue(L"EmbedWindow");
-    bool embedWindow = (embedWindowStr != L"false"); // Default to true
-    
-    // Check if we should show console (from config file)
-    std::wstring showConsole = LoadConfigValue(L"ShowConsole");
-    consoleEnabled = (showConsole == L"true" || showConsole == L"True" || showConsole == L"1");
+    bool embedWindow = config.embedWindow;
+    consoleEnabled = config.showConsole;
     
     if (consoleEnabled)
     {
@@ -566,13 +558,14 @@ void HandleHotkey(int hotkeyId)
             if (!config.firstRun.cancelled)
             {
                 // Save configuration from dialog
-                SaveConfigValue(L"DefaultISO", config.firstRun.isoPath);
-                SaveConfigValue(L"PCSX2Path", config.firstRun.pcsx2Path);
-                SaveConfigValue(L"MapRegion", config.firstRun.mapRegion);
-                SaveConfigValue(L"BootToMultiplayer", config.firstRun.bootToMultiplayer ? L"true" : L"false");
-                SaveConfigValue(L"WideScreen", config.firstRun.wideScreen ? L"true" : L"false");
-                SaveConfigValue(L"ProgressiveScan", config.firstRun.progressiveScan ? L"true" : L"false");
-                SaveConfigValue(L"EmbedWindow", config.firstRun.embedWindow ? L"true" : L"false");
+                config.isoPath = config.firstRun.isoPath;
+                config.pcsx2Path = config.firstRun.pcsx2Path;
+                config.mapRegion = config.firstRun.mapRegion;
+                config.bootToMultiplayer = config.firstRun.bootToMultiplayer;
+                config.wideScreen = config.firstRun.wideScreen;
+                config.progressiveScan = config.firstRun.progressiveScan;
+                config.embedWindow = config.firstRun.embedWindow;
+                SaveConfig(config);
 
                 // Set patch flags from dialog
                 SetBootToMultiplayer(config.firstRun.bootToMultiplayer);
@@ -580,8 +573,7 @@ void HandleHotkey(int hotkeyId)
                 SetProgressiveScan(config.firstRun.progressiveScan);
 
                 // Manage pnach patches with new settings
-                std::wstring pcsx2PathForPatches = LoadConfigValue(L"PCSX2Path");
-                ManagePnachPatches(config.firstRun.mapRegion, pcsx2PathForPatches);
+                ManagePnachPatches(config.firstRun.mapRegion, config.firstRun.pcsx2Path);
 
                 if (consoleEnabled)
                     std::cout << "Configuration saved." << std::endl;
@@ -630,7 +622,7 @@ void MonitorProcess()
                     Sleep(500);
                     std::wstring isoPath = LoadConfigValue(L"DefaultISO");
                     LaunchPCSX2(isoPath);
-                    EmbedPCSX2Window(); // Re-embed after restart
+                    EmbedPCSX2Window();
                 }
                 else
                 {

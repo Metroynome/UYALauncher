@@ -581,11 +581,36 @@ void HandleHotkey(int hotkeyId)
                 if (relaunch)
                 {
                     if (consoleEnabled)
-                        std::cout << "Relaunching PCSX2..." << std::endl;
+                        std::cout << "Relaunching launcher..." << std::endl;
 
-                    shouldRestart = true;
+                    // Get path to current executable
+                    wchar_t exePath[MAX_PATH];
+                    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+
+                    // Launch new instance
+                    STARTUPINFOW si = { sizeof(si) };
+                    PROCESS_INFORMATION pi = {0};
+                    if (!CreateProcessW(exePath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+                    {
+                        if (consoleEnabled)
+                            std::cout << "Failed to relaunch launcher. Error: " << GetLastError() << std::endl;
+                    }
+                    else
+                    {
+                        if (consoleEnabled)
+                            std::cout << "Launcher restarted successfully!" << std::endl;
+                        CloseHandle(pi.hProcess);
+                        CloseHandle(pi.hThread);
+                    }
+
+                    // Terminate current launcher
+                    running = false;
                     if (processInfo.hProcess)
                         TerminateProcess(processInfo.hProcess, 0);
+
+                    PostShutdownCleanup();
+
+                    ExitProcess(0);
                 }
             }
             else if (consoleEnabled)
@@ -603,37 +628,17 @@ void MonitorProcess()
     if (consoleEnabled)
         std::cout << "Process monitor thread started." << std::endl;
 
-    while (running)
-    {
-        if (processInfo.hProcess)
-        {
+    while (running) {
+        if (processInfo.hProcess) {
             DWORD waitResult = WaitForSingleObject(processInfo.hProcess, 1000);
-            
-            if (waitResult == WAIT_OBJECT_0)
-            {
+            if (waitResult == WAIT_OBJECT_0) {
                 if (consoleEnabled)
                     std::cout << "PCSX2 process has exited." << std::endl;
                 
-                if (shouldRestart)
-                {
-                    shouldRestart = false;
-                    CloseHandle(processInfo.hProcess);
-                    CloseHandle(processInfo.hThread);
-                    Sleep(500);
-                    std::wstring isoPath = LoadConfigValue(L"DefaultISO");
-                    LaunchPCSX2(isoPath);
-                    EmbedPCSX2Window();
-                }
-                else
-                {
-                    // Set running to false to break the message loop
-                    running = false;
-                }
+                running = false;
                 break;
             }
-        }
-        else
-        {
+        } else {
             if (consoleEnabled)
                 std::cout << "No process handle, exiting monitor." << std::endl;
             break;
@@ -646,11 +651,9 @@ void MonitorProcess()
 
 void PostShutdownCleanup()
 {
-    if (processInfo.hProcess)
-    {
+    if (processInfo.hProcess) {
         DWORD exitCode;
-        if (GetExitCodeProcess(processInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE)
-        {
+        if (GetExitCodeProcess(processInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE) {
             TerminateProcess(processInfo.hProcess, 0);
             WaitForSingleObject(processInfo.hProcess, 2000);
         }
@@ -666,23 +669,17 @@ bool IsProcessRunning(HANDLE processHandle)
 
     DWORD exitCode;
     if (GetExitCodeProcess(processHandle, &exitCode))
-    {
         return exitCode == STILL_ACTIVE;
-    }
+    
     return false;
 }
 
 BOOL WINAPI ConsoleHandler(DWORD signal)
 {
-    if (signal == CTRL_CLOSE_EVENT || signal == CTRL_C_EVENT || 
-        signal == CTRL_BREAK_EVENT || signal == CTRL_LOGOFF_EVENT || 
-        signal == CTRL_SHUTDOWN_EVENT)
-    {
-        if (processInfo.hProcess)
-        {
+    if (signal == CTRL_CLOSE_EVENT || signal == CTRL_C_EVENT || signal == CTRL_BREAK_EVENT || signal == CTRL_LOGOFF_EVENT || signal == CTRL_SHUTDOWN_EVENT) {
+        if (processInfo.hProcess) {
             DWORD exitCode;
-            if (GetExitCodeProcess(processInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE)
-            {
+            if (GetExitCodeProcess(processInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE) {
                 TerminateProcess(processInfo.hProcess, 0);
                 WaitForSingleObject(processInfo.hProcess, 2000);
             }
@@ -691,171 +688,7 @@ BOOL WINAPI ConsoleHandler(DWORD signal)
         }
         
         running = false;
-        return TRUE;
-    }
-    return FALSE;
-}
-
-bool CreatePnachFile(const std::wstring& region)
-{
-    if (consoleEnabled)
-        std::cout << "Checking for PCSX2 patches folder..." << std::endl;
-    
-    // Get PCSX2 directory
-    std::wstring pcsx2Path = LoadConfigValue(L"PCSX2Path");
-    size_t lastSlash = pcsx2Path.find_last_of(L"\\/");
-    std::wstring pcsx2Dir = pcsx2Path.substr(0, lastSlash);
-    
-    // Location 1: Same directory as PCSX2 exe
-    std::wstring patchesFolder1 = pcsx2Dir + L"\\patches";
-    
-    // Location 2: Documents folder
-    wchar_t documentsPath[MAX_PATH];
-    SHGetFolderPathW(NULL, CSIDL_PERSONAL, NULL, 0, documentsPath);
-    std::wstring patchesFolder2 = std::wstring(documentsPath) + L"\\PCSX2\\patches";
-    
-    // Check which location exists
-    std::wstring patchesFolder;
-    DWORD attr1 = GetFileAttributesW(patchesFolder1.c_str());
-    DWORD attr2 = GetFileAttributesW(patchesFolder2.c_str());
-    
-    bool location1Exists = (attr1 != INVALID_FILE_ATTRIBUTES && (attr1 & FILE_ATTRIBUTE_DIRECTORY));
-    bool location2Exists = (attr2 != INVALID_FILE_ATTRIBUTES && (attr2 & FILE_ATTRIBUTE_DIRECTORY));
-    
-    if (location1Exists)
-    {
-        patchesFolder = patchesFolder1;
-        if (consoleEnabled)
-            std::wcout << L"Found patches folder: " << patchesFolder << std::endl;
-    }
-    else if (location2Exists)
-    {
-        patchesFolder = patchesFolder2;
-        if (consoleEnabled)
-            std::wcout << L"Found patches folder: " << patchesFolder << std::endl;
-    }
-    else
-    {
-        if (consoleEnabled)
-            std::cout << "No patches folder found in either location" << std::endl;
-        return false;
-    }
-    
-    // Determine filename and content based on region
-    std::wstring filename;
-    std::wstring gameTitle;
-    std::wstring patchIdentifier;
-    std::wstring patchContent;
-    
-    if (region == L"NTSC")
-    {
-        filename = L"SCUS-97353_45FE0CC4.pnach";
-        gameTitle = L"Ratchet & Clank: Up Your Arsenal (NTSC-U)";
-        patchIdentifier = L"patch=1,EE,20381590,extended,080E6010";
-        patchContent = 
-            L"\n"
-            L"// boot to multiplayer\n"
-            L"patch=1,EE,20381590,extended,080E6010\n";
-    }
-    else if (region == L"PAL")
-    {
-        filename = L"BBC328EE.pnach";
-        gameTitle = L"Ratchet & Clank 3 (PAL)";
-        patchIdentifier = L"patch=1,EE,20381590,extended,080E6010";
-        patchContent = 
-            L"\n"
-            L"// boot to multiplayer\n"
-            L"// patch=1,EE,20381590,extended,080E6010\n";
-    }
-    else if (region == L"Both")
-    {
-        // Create both files
-        bool ntscResult = CreatePnachFile(L"NTSC");
-        bool palResult = CreatePnachFile(L"PAL");
-        return ntscResult && palResult;
-    }
-    else
-    {
-        return false;
-    }
-    
-    // Full path to pnach file
-    std::wstring pnachPath = patchesFolder + L"\\" + filename;
-    
-    // Check if file exists
-    DWORD fileAttr = GetFileAttributesW(pnachPath.c_str());
-    
-    if (fileAttr == INVALID_FILE_ATTRIBUTES)
-    {
-        // File doesn't exist - create it with full header
-        std::wofstream file(pnachPath);
-        if (!file.is_open())
-        {
-            if (consoleEnabled)
-                std::wcout << L"Failed to create pnach file: " << pnachPath << std::endl;
-            return false;
-        }
-        
-        file << L"gametitle=" << gameTitle << L"\n";
-        file << patchContent;
-        file.close();
-        
-        if (consoleEnabled)
-            std::wcout << L"Created pnach file: " << pnachPath << std::endl;
-        
         return true;
     }
-    else
-    {
-        // File exists - check if our patch is already in it
-        std::wifstream readFile(pnachPath);
-        if (!readFile.is_open())
-        {
-            if (consoleEnabled)
-                std::wcout << L"Failed to read existing pnach file: " << pnachPath << std::endl;
-            return false;
-        }
-        
-        // Read entire file and check for our identifier
-        std::wstring fileContents;
-        std::wstring line;
-        bool patchExists = false;
-        
-        while (std::getline(readFile, line))
-        {
-            fileContents += line + L"\n";
-            if (line.find(patchIdentifier) != std::wstring::npos)
-            {
-                patchExists = true;
-            }
-        }
-        readFile.close();
-        
-        if (patchExists)
-        {
-            // Our patch already exists in the file
-            if (consoleEnabled)
-                std::wcout << L"Patch already exists in: " << pnachPath << std::endl;
-            return true;
-        }
-        else
-        {
-            // Append our patch to the existing file
-            std::wofstream appendFile(pnachPath, std::ios::app);
-            if (!appendFile.is_open())
-            {
-                if (consoleEnabled)
-                    std::wcout << L"Failed to append to pnach file: " << pnachPath << std::endl;
-                return false;
-            }
-            
-            appendFile << patchContent;
-            appendFile.close();
-            
-            if (consoleEnabled)
-                std::wcout << L"Appended patch to existing file: " << pnachPath << std::endl;
-            
-            return true;
-        }
-    }
+    return false;
 }

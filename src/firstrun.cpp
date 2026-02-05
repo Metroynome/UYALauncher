@@ -217,6 +217,9 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     int launchButtonHeight = 40;
     int launchButtonX = (windowWidth - launchButtonWidth) / 2;
 
+    // increate height if hotkey for config is pressed.
+    if (hotkeyMode) windowHeight += 45;
+
     // Create the dialog window - resizable
     HWND hwnd = CreateWindowExW(
         0,

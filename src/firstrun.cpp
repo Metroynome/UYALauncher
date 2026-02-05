@@ -8,11 +8,6 @@
 
 #pragma comment(lib, "comctl32.lib")
 
-// Static variables
-static HWND g_firstRunDlg = NULL;
-static bool g_requestRelaunch = false;
-
-// Control IDs for first run dialog
 #define IDC_ISO_PATH_EDIT           1001
 #define IDC_ISO_BROWSE_BTN          1002
 #define IDC_PCSX2_PATH_EDIT         1003
@@ -26,8 +21,9 @@ static bool g_requestRelaunch = false;
 #define IDC_SAVE_BTN                1011
 #define IDC_SAVE_RELAUNCH_BTN       1012
 
+static HWND g_firstRunDlg = NULL;
+SettingsState settings;
 
-// Validate and enable/disable Launch button
 void ValidateLaunchButton(HWND hwnd) {
     wchar_t isoPath[MAX_PATH];
     wchar_t pcsx2Path[MAX_PATH];
@@ -80,13 +76,45 @@ std::wstring BrowseForPCSX2(HWND parent) {
     return L"";
 }
 
-// Dialog procedure for first run setup
+void GetConfigFromDialog(HWND hwnd, Configuration& config)
+{
+    // Get ISO path
+    wchar_t isoPath[MAX_PATH];
+    GetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, isoPath, MAX_PATH);
+    config.isoPath = isoPath;
+
+    // Get PCSX2 path
+    wchar_t pcsx2Path[MAX_PATH];
+    GetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, pcsx2Path, MAX_PATH);
+    config.pcsx2Path = pcsx2Path;
+
+    // Validate paths
+    if (config.isoPath.empty() || config.pcsx2Path.empty()) {
+        MessageBoxW(hwnd, L"Please select both ISO and PCSX2 paths.", L"Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    // Get region selection
+    HWND hCombo = GetDlgItem(hwnd, IDC_REGION_COMBO);
+    int sel = SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
+    wchar_t region[32];
+    SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)region);
+    config.mapRegion = region;
+
+    // get all other items
+    config.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
+    config.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
+    config.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
+    config.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
+}
+
+
 INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_INITDIALOG:
         {
             g_firstRunDlg = hwnd;
-            g_requestRelaunch = false;
+            settings.relaunch = false;
             
             // Center the dialog
             RECT rc;
@@ -130,65 +158,48 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 
                 case IDC_LAUNCH_BTN:
                 {
-                    // Get ISO path
-                    wchar_t isoPath[MAX_PATH];
-                    GetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, isoPath, MAX_PATH);
-                    config.firstRun.isoPath = isoPath;
+                    // Get Config f rom dialog settings
+                    GetConfigFromDialog(hwnd, config);
                     
-                    // Get PCSX2 path
-                    wchar_t pcsx2Path[MAX_PATH];
-                    GetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, pcsx2Path, MAX_PATH);
-                    config.firstRun.pcsx2Path = pcsx2Path;
+                    // Save to file
+                    SaveConfig(config);
                     
-                    // Validate paths
-                    if (config.firstRun.isoPath.empty() || config.firstRun.pcsx2Path.empty()) {
-                        MessageBoxW(hwnd, L"Please select both ISO and PCSX2 paths.", L"Error", MB_OK | MB_ICONERROR);
-                        return TRUE;
-                    }
+                    // Apply
+                    ApplyConfig(config);
                     
-                    // Get region selection
-                    HWND hCombo = GetDlgItem(hwnd, IDC_REGION_COMBO);
-                    int sel = SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
-                    wchar_t region[32];
-                    SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)region);
-                    config.firstRun.mapRegion = region;
-                    config.firstRun.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
-                    config.firstRun.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
-                    config.firstRun.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
-                    config.firstRun.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
-                    config.firstRun.cancelled = false;
-                    
+                    settings.cancelled = false;
+
                     // Destroy the window to exit the message loop
                     DestroyWindow(hwnd);
-                    return TRUE;
+                    return true;
                 }
                 
                 case IDCANCEL:
                 {
-                    config.firstRun.cancelled = true;
+                    settings.cancelled = true;
                     DestroyWindow(hwnd);
-                    return TRUE;
+                    return true;
                 }
                 case IDC_SAVE_BTN:
                 case IDC_SAVE_RELAUNCH_BTN:
                 {
-                    g_requestRelaunch = (LOWORD(wParam) == IDC_SAVE_RELAUNCH_BTN);
+                    settings.relaunch = (LOWORD(wParam) == IDC_SAVE_RELAUNCH_BTN);
 
                     // Reuse existing OK logic
                     SendMessageW(hwnd, WM_COMMAND, IDC_LAUNCH_BTN, 0);
-                    return TRUE;
+                    return true;
                 }
             }
             break;
         }
         
         case WM_CLOSE:
-            config.firstRun.cancelled = true;
+            settings.cancelled = true;
             DestroyWindow(hwnd);
-            return TRUE;
+            return true;
     }
     
-    return FALSE;
+    return false;
 }
 
 // Show first run setup dialog
@@ -385,5 +396,5 @@ else
             break;
     }
     
-    return (!config.firstRun.cancelled && g_requestRelaunch);
+    return !settings.cancelled;
 }

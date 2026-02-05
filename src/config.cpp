@@ -3,6 +3,7 @@
 #include <sstream>
 #include <Windows.h>
 #include <shlobj.h>
+#include "patches.h"
 
 Configuration config;
 static std::wstring g_ConfigPath;
@@ -38,6 +39,14 @@ void SaveConfig(const Configuration& config)
     SaveConfigValue(L"WideScreen", config.wideScreen ? L"true" : L"false");
     SaveConfigValue(L"ProgressiveScan", config.progressiveScan ? L"true" : L"false");
     SaveConfigValue(L"ShowConsole", config.showConsole ? L"true" : L"false");
+}
+
+void ApplyConfig(const Configuration& config)
+{
+    SetBootToMultiplayer(config.bootToMultiplayer);
+    SetWideScreen(config.wideScreen);
+    SetProgressiveScan(config.progressiveScan);
+    ManagePnachPatches(config.mapRegion, config.pcsx2Path); 
 }
 
 const std::wstring& GetConfigPath()

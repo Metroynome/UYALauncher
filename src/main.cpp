@@ -78,34 +78,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Check if this is first run OR if config is incomplete
     bool firstRun = IsFirstRun();
     bool configIncomplete = !firstRun && !IsConfigComplete();
-    if (firstRun || configIncomplete)
-    {
+    if (firstRun || configIncomplete) {
         if (configIncomplete && consoleEnabled)
             std::cout << "Incomplete config detected - showing setup dialog" << std::endl;
         // Show first-run setup dialog
         if (!ShowFirstRunDialog(hInstance, NULL, false))
-        {
-            // User cancelled
             return 0;
-        }
-        
-        // Save configuration from first-run dialog
-        SaveConfigValue(L"DefaultISO", config.firstRun.isoPath);
-        SaveConfigValue(L"PCSX2Path", config.firstRun.pcsx2Path);
-        SaveConfigValue(L"MapRegion", config.firstRun.mapRegion);
-        SaveConfigValue(L"BootToMultiplayer", config.firstRun.bootToMultiplayer ? L"true" : L"false");
-        SaveConfigValue(L"WideScreen", config.firstRun.wideScreen ? L"true" : L"false");
-        SaveConfigValue(L"ProgressiveScan", config.firstRun.progressiveScan ? L"true" : L"false");
-        SaveConfigValue(L"EmbedWindow", config.firstRun.embedWindow ? L"true" : L"false");
-        
-        // Set patch flags from first-run dialog
-        SetBootToMultiplayer(config.firstRun.bootToMultiplayer);
-        SetWideScreen(config.firstRun.wideScreen);
-        SetProgressiveScan(config.firstRun.progressiveScan);
-        
-        // Manage pnach file
-        std::wstring pcsx2PathForPatches = LoadConfigValue(L"PCSX2Path");
-        ManagePnachPatches(config.firstRun.mapRegion, pcsx2PathForPatches);
     }
     
     // Load configuration
@@ -113,22 +91,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::wstring isoPath = config.isoPath;
     std::wstring pcsx2Path = config.pcsx2Path;
     std::wstring mapRegion = config.mapRegion;
-    if (mapRegion.empty()) mapRegion = L"NTSC";
-
-    SetBootToMultiplayer(config.bootToMultiplayer);
-    SetWideScreen(config.wideScreen);
-    SetProgressiveScan(config.progressiveScan);
-
-    // Manage pnach patches based on current config (ADD THESE LINES)
-    if (!pcsx2Path.empty()) {
-        ManagePnachPatches(mapRegion, pcsx2Path);
-    }
+    
+    // Apply Config
+    ApplyConfig(config);
 
     bool embedWindow = config.embedWindow;
     consoleEnabled = config.showConsole;
     
-    if (consoleEnabled)
-    {
+    if (consoleEnabled) {
         // Allocate a console for debugging
         AllocConsole();
         FILE* fDummy;
@@ -585,69 +555,46 @@ void HandleHotkey(int hotkeyId)
             if (consoleEnabled)
                 std::cout << "Opening First Run configuration..." << std::endl;
 
-            bool relaunch = ShowFirstRunDialog(GetModuleHandle(NULL), mainWindow, true);
-
-            if (!config.firstRun.cancelled)
-            {
-                // Save configuration from dialog
-                config.isoPath = config.firstRun.isoPath;
-                config.pcsx2Path = config.firstRun.pcsx2Path;
-                config.mapRegion = config.firstRun.mapRegion;
-                config.bootToMultiplayer = config.firstRun.bootToMultiplayer;
-                config.wideScreen = config.firstRun.wideScreen;
-                config.progressiveScan = config.firstRun.progressiveScan;
-                config.embedWindow = config.firstRun.embedWindow;
-                SaveConfig(config);
-
-                // Set patch flags from dialog
-                SetBootToMultiplayer(config.firstRun.bootToMultiplayer);
-                SetWideScreen(config.firstRun.wideScreen);
-                SetProgressiveScan(config.firstRun.progressiveScan);
-
-                // Manage pnach patches with new settings
-                ManagePnachPatches(config.firstRun.mapRegion, config.firstRun.pcsx2Path);
-
-                if (consoleEnabled)
+            ShowFirstRunDialog(GetModuleHandle(NULL), mainWindow, true);
+            
+            if (consoleEnabled) {
+                if (settings.cancelled) {
+                    std::cout << "Configuration cancelled." << std::endl;
+                } else {
                     std::cout << "Configuration saved." << std::endl;
-
-                if (relaunch)
-                {
-                    if (consoleEnabled)
-                        std::cout << "Relaunching launcher..." << std::endl;
-
-                    // Get path to current executable
-                    wchar_t exePath[MAX_PATH];
-                    GetModuleFileNameW(NULL, exePath, MAX_PATH);
-
-                    // Launch new instance
-                    STARTUPINFOW si = { sizeof(si) };
-                    PROCESS_INFORMATION pi = {0};
-                    if (!CreateProcessW(exePath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
-                    {
-                        if (consoleEnabled)
-                            std::cout << "Failed to relaunch launcher. Error: " << GetLastError() << std::endl;
-                    }
-                    else
-                    {
-                        if (consoleEnabled)
-                            std::cout << "Launcher restarted successfully!" << std::endl;
-                        CloseHandle(pi.hProcess);
-                        CloseHandle(pi.hThread);
-                    }
-
-                    // Terminate current launcher
-                    running = false;
-                    if (processInfo.hProcess)
-                        TerminateProcess(processInfo.hProcess, 0);
-
-                    PostShutdownCleanup();
-
-                    ExitProcess(0);
                 }
             }
-            else if (consoleEnabled)
-            {
-                std::cout << "Configuration cancelled." << std::endl;
+
+            // Check if relaunch was requested
+            if (!settings.cancelled && settings.relaunch) {
+                if (consoleEnabled)
+                    std::cout << "Relaunching launcher..." << std::endl;
+
+                // Get path to current executable
+                wchar_t exePath[MAX_PATH];
+                GetModuleFileNameW(NULL, exePath, MAX_PATH);
+
+                // Launch new instance
+                STARTUPINFOW si = { sizeof(si) };
+                PROCESS_INFORMATION pi = {0};
+                if (!CreateProcessW(exePath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+                    if (consoleEnabled)
+                        std::cout << "Failed to relaunch launcher. Error: " << GetLastError() << std::endl;
+                } else {
+                    if (consoleEnabled)
+                        std::cout << "Launcher restarted successfully!" << std::endl;
+                    CloseHandle(pi.hProcess);
+                    CloseHandle(pi.hThread);
+                }
+
+                // Terminate current launcher
+                running = false;
+                if (processInfo.hProcess)
+                    TerminateProcess(processInfo.hProcess, 0);
+
+                PostShutdownCleanup();
+
+                ExitProcess(0);
             }
 
             break;

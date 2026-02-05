@@ -6,6 +6,15 @@
 #define GitUser L"Metroynome"
 #define GitRepo L"UYALauncher"
 
+enum class UpdateResult {
+    UpToDate,
+    Updated,
+    NetworkError,
+    Failed,
+    UserCancelled
+};
+
+UpdateResult RunUpdater(bool silent = false);
 bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion);
 void RunSelfUpdate();
 bool DownloadFile(const std::wstring& url, const std::wstring& outPath);

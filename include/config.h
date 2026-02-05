@@ -5,6 +5,7 @@ struct Configuration {
     std::wstring isoPath;
     std::wstring pcsx2Path;
     std::wstring mapRegion;
+    bool autoUpdate;
     bool embedWindow;
     bool bootToMultiplayer;
     bool wideScreen;

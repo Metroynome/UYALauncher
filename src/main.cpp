@@ -47,37 +47,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0;
     }
 
-    // Check for updates at start.
-    std::wstring updateUrl;
-    std::wstring remoteVersion;
-    if (CheckForUpdate(updateUrl, remoteVersion)) {
-        if (consoleEnabled)
-            std::wcout << L"Update available: v" << remoteVersion << L" (current v" << UYA_LAUNCHER_VERSION << L")" << std::endl;
-
-        wchar_t cmd[MAX_PATH * 2];
-        swprintf_s(cmd, L"\"%s\"", GetExecutablePath().c_str());
-
-        STARTUPINFOW si{};
-        PROCESS_INFORMATION pi{};
-        si.cb = sizeof(si);
-
-        CreateProcessW(
-            nullptr,
-            cmd,
-            nullptr,
-            nullptr,
-            FALSE,
-            0,
-            nullptr,
-            nullptr,
-            &si,
-            &pi
-        );
-    }
-
     // Check if this is first run OR if config is incomplete
     bool firstRun = IsFirstRun();
     bool configIncomplete = !firstRun && !IsConfigComplete();
+
+    // Check for updates at start
+    if (!firstRun) {
+        Configuration tempConfig = LoadConfig();
+        if (tempConfig.autoUpdate) {
+            UpdateResult result = RunUpdater(false);
+        }
+    }
+
     if (firstRun || configIncomplete) {
         if (configIncomplete && consoleEnabled)
             std::cout << "Incomplete config detected - showing setup dialog" << std::endl;
@@ -124,27 +105,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));        
         
         if (!RegisterClassExW(&wc))
-        {
             return 0;
-        }
 
         // Create window (larger default size for game display)
-        mainWindow = CreateWindowExW(
-            0,
-            L"UYALauncherClass",
-            L"Ratchet & Clank: Up Your Arsenal",
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, 960, 720,
-            NULL, NULL, hInstance, NULL
-        );
-
+        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 960, 720, NULL, NULL, hInstance, NULL);
         if (mainWindow == NULL)
-        {
             return 0;
-        }
-
-        ShowWindow(mainWindow, nCmdShow);
+        
         UpdateWindow(mainWindow);
+        ShowWindow(mainWindow, nCmdShow);
         
         if (consoleEnabled)
             std::cout << "Main wrapper window created." << std::endl;
@@ -438,7 +407,7 @@ void EmbedPCSX2Window()
                         }
                     }
                 }
-                return TRUE; // Continue enumeration
+                return true;
             }, (LPARAM)&data);
             
             pcsx2Window = data.foundWindow;
@@ -455,10 +424,8 @@ void EmbedPCSX2Window()
         attempts++;
     }
 
-    if (pcsx2Window != NULL)
-    {
-        if (consoleEnabled)
-        {
+    if (pcsx2Window != NULL) {
+        if (consoleEnabled) {
             std::cout << "Embedding PCSX2 window..." << std::endl;
             
             // Get current window info for debugging
@@ -475,21 +442,18 @@ void EmbedPCSX2Window()
         style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU);
         style |= WS_CHILD;
         SetWindowLongPtr(pcsx2Window, GWL_STYLE, style);
-
         // Set wrapper as parent
         SetParent(pcsx2Window, mainWindow);
 
         // Resize to fit wrapper window
         RECT rect;
-        GetClientRect(mainWindow, &rect);
-        SetWindowPos(pcsx2Window, NULL, 0, 0, 
-                   rect.right - rect.left, 
-                   rect.bottom - rect.top, 
-                   SWP_NOZORDER | SWP_FRAMECHANGED);
+        GetClientRect(pcsx2Window, &rect);
+        SetWindowPos(mainWindow, NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_FRAMECHANGED);
+        
+        UpdateWindow(pcsx2Window);
 
         // Show the window
         ShowWindow(pcsx2Window, SW_SHOW);
-        UpdateWindow(pcsx2Window);
 
         if (consoleEnabled)
             std::cout << "PCSX2 window embedded successfully!" << std::endl;

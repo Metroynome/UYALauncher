@@ -1,5 +1,6 @@
 #include "firstrun.h"
 #include "config.h"
+#include "updater.h"
 #include <windows.h>
 #include <commdlg.h>
 #include <commctrl.h>
@@ -20,6 +21,8 @@
 #define IDC_LAUNCH_BTN              1010
 #define IDC_SAVE_BTN                1011
 #define IDC_SAVE_RELAUNCH_BTN       1012
+#define IDC_AUTO_UPDATE_CHECK       1013
+#define IDC_UPDATE_BTN              1014
 
 static HWND g_firstRunDlg = NULL;
 SettingsState settings;
@@ -102,6 +105,7 @@ void GetConfigFromDialog(HWND hwnd, Configuration& config)
     config.mapRegion = region;
 
     // get all other items
+    config.autoUpdate = (IsDlgButtonChecked(hwnd, IDC_AUTO_UPDATE_CHECK) == BST_CHECKED);
     config.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
     config.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
     config.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
@@ -189,6 +193,30 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     SendMessageW(hwnd, WM_COMMAND, IDC_LAUNCH_BTN, 0);
                     return true;
                 }
+                case IDC_UPDATE_BTN:
+                {
+                    EnableWindow(GetDlgItem(hwnd, IDC_UPDATE_BTN), FALSE);
+                    SetDlgItemTextW(hwnd, IDC_UPDATE_BTN, L"Checking...");
+                    
+                    UpdateResult result = RunUpdater(false);  // false = not silent, show prompts
+                    switch (result) {
+                        case UpdateResult::UpToDate:
+                            MessageBoxW(hwnd, L"You're on the latest version!", L"No Updates", MB_OK | MB_ICONINFORMATION);
+                            break;
+                        case UpdateResult::NetworkError:
+                            MessageBoxW(hwnd, L"Cannot connect to update server. Check your internet connection.", L"Network Error", MB_OK | MB_ICONERROR);
+                            break;
+                        case UpdateResult::Failed:
+                            MessageBoxW(hwnd, L"Update failed. Please try again later.", L"Error", MB_OK | MB_ICONERROR);
+                            break;
+                        case UpdateResult::UserCancelled:
+                        case UpdateResult::Updated:
+                            break;
+                    }
+                    EnableWindow(GetDlgItem(hwnd, IDC_UPDATE_BTN), TRUE);
+                    SetDlgItemTextW(hwnd, IDC_UPDATE_BTN, L"Check for Updates");
+                    return true;
+                }
             }
             break;
         }
@@ -229,7 +257,7 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     int launchButtonX = (windowWidth - launchButtonWidth) / 2;
 
     // increate height if hotkey for config is pressed.
-    if (hotkeyMode) windowHeight += 45;
+    if (hotkeyMode) windowHeight += 90;
 
     // Create the dialog window - resizable
     HWND hwnd = CreateWindowExW(
@@ -264,6 +292,17 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
     y += 35;
 
+    // Auto Update Launcher checkbox (NEW)
+    CreateWindowW(L"STATIC", L"Auto Update Launcher:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_AUTO_UPDATE_CHECK, hInstance, NULL);
+    CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_CHECKED);
+    
+    // Add version label next to checkbox
+std::wstring versionText = L"(v" + std::wstring(UYA_LAUNCHER_VERSION) + L")";
+CreateWindowW(L"STATIC", versionText.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, editX + 25, y + 3, 100, 20, hwnd, NULL, hInstance, NULL);
+
+    y += 35;
+
     // Boot to Multiplayer checkbox (NEW)
     CreateWindowW(L"STATIC", L"Boot to Multiplayer:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
     CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_BOOT_MP_CHECK, hInstance, NULL);
@@ -277,10 +316,10 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     y += 35;
 
     // Progressive Scan checkbox (NEW)
-    CreateWindowW(L"STATIC", L"Progressive Scan:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_PROGRESSIVE_SCAN_CHECK, hInstance, NULL);
-    CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
-    y += 35;
+    // CreateWindowW(L"STATIC", L"Progressive Scan:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
+    // CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_PROGRESSIVE_SCAN_CHECK, hInstance, NULL);
+    // CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
+    // y += 35;
 
     // Embed window checkbox
     CreateWindowW(L"STATIC", L"Embed Window:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
@@ -289,41 +328,49 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     y += 35;
     
     // Launch button
-if (!hotkeyMode)
-{
-    // Normal first run: Launch button
-    CreateWindowW(
-        L"BUTTON",
-        L"Launch",
-        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        launchButtonX, y,
-        launchButtonWidth, launchButtonHeight,
-        hwnd, (HMENU)IDC_LAUNCH_BTN, hInstance, NULL
-    );
-}
-else
-{
-    // Hotkey mode: Save + Save & Relaunch
-    CreateWindowW(
-        L"BUTTON",
-        L"Save",
-        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        launchButtonX, y,
-        launchButtonWidth, 30,
-        hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL
-    );
+    if (!hotkeyMode) {
+        // Normal first run: Launch button
+        CreateWindowW(
+            L"BUTTON",
+            L"Launch",
+            WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+            launchButtonX, y,
+            launchButtonWidth, launchButtonHeight,
+            hwnd, (HMENU)IDC_UPDATE_BTN, hInstance, NULL
+        );
+    } else {
+        // Check for Updates
+        CreateWindowW(
+            L"BUTTON",
+            L"Check for Updates",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            launchButtonX, y,
+            launchButtonWidth, 30,
+            hwnd, (HMENU)IDC_UPDATE_BTN, hInstance, NULL
+        );
+        y += 40;
 
-    y += 40;
+        // Hotkey mode: Save + Save & Relaunch
+        CreateWindowW(
+            L"BUTTON",
+            L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            launchButtonX, y,
+            launchButtonWidth, 30,
+            hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL
+        );
 
-    CreateWindowW(
-        L"BUTTON",
-        L"Save and Relaunch",
-        WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        launchButtonX, y,
-        launchButtonWidth, 30,
-        hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL
-    );
-}
+        y += 40;
+
+        CreateWindowW(
+            L"BUTTON",
+            L"Save and Relaunch",
+            WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+            launchButtonX, y,
+            launchButtonWidth, 30,
+            hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL
+        );
+    }
     // Load existing config values if they exist
     std::wstring existingISO = LoadConfigValue(L"DefaultISO");
     std::wstring existingPCSX2 = LoadConfigValue(L"PCSX2Path");
@@ -332,6 +379,8 @@ else
     std::wstring existingBootMP = LoadConfigValue(L"BootToMultiplayer");
     std::wstring existingWideScreen = LoadConfigValue(L"WideScreen");
     std::wstring existingProgressiveScan = LoadConfigValue(L"ProgressiveScan");
+    std::wstring existingAutoUpdate = LoadConfigValue(L"AutoUpdate");
+
 
     // Set ISO path if exists
     if (!existingISO.empty())
@@ -377,6 +426,11 @@ else
     else
         CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
 
+    // Set auto update checkbox if exists (default to true if not set)
+    if (!existingAutoUpdate.empty() && existingAutoUpdate == L"false")
+        CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_UNCHECKED);
+    else
+        CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_CHECKED);
 
     // Set dialog proc
     SetWindowLongPtrW(hwnd, DWLP_DLGPROC, (LONG_PTR)FirstRunDlgProc);

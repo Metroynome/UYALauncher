@@ -14,6 +14,7 @@ Configuration LoadConfig()
     config.isoPath = LoadConfigValue(L"DefaultISO");
     config.pcsx2Path = LoadConfigValue(L"PCSX2Path");
     config.mapRegion = LoadConfigValue(L"MapRegion");
+    config.autoUpdate = (LoadConfigValue(L"AutoUpdate") == L"true");
     config.embedWindow = (LoadConfigValue(L"EmbedWindow") != L"false");
     config.bootToMultiplayer = (LoadConfigValue(L"BootToMultiplayer") == L"true");
     config.wideScreen = (LoadConfigValue(L"WideScreen") == L"true");
@@ -34,6 +35,7 @@ void SaveConfig(const Configuration& config)
     SaveConfigValue(L"DefaultISO", config.isoPath);
     SaveConfigValue(L"PCSX2Path", config.pcsx2Path);
     SaveConfigValue(L"MapRegion", config.mapRegion);
+    SaveConfigValue(L"AutoUpdate", config.autoUpdate ? L"true" : L"false");
     SaveConfigValue(L"EmbedWindow", config.embedWindow ? L"true" : L"false");
     SaveConfigValue(L"BootToMultiplayer", config.bootToMultiplayer ? L"true" : L"false");
     SaveConfigValue(L"WideScreen", config.wideScreen ? L"true" : L"false");

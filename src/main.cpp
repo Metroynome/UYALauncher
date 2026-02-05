@@ -12,6 +12,11 @@
 #include "mapupdater.h"
 #include "resource.h"
 #include "patches.h"
+#include "updater.h"
+
+// Hotkeys
+#define HOTKEY_UPDATE_MAPS  1
+#define HOTKEY_OPEN_FIRSTRUN  2
 
 // Global variables for process management
 PROCESS_INFORMATION processInfo = {0};
@@ -19,11 +24,7 @@ std::atomic<bool> running(false);
 std::atomic<bool> shouldRestart(false);
 HWND mainWindow = NULL;
 HWND pcsx2Window = NULL;
-bool consoleEnabled = false; // Global flag for console output
-
-// Hotkeys
-#define HOTKEY_UPDATE_MAPS  1
-#define HOTKEY_OPEN_FIRSTRUN  2
+bool consoleEnabled = false;
 
 // Function declarations
 std::wstring SelectISOFile();
@@ -41,15 +42,46 @@ BOOL WINAPI ConsoleHandler(DWORD signal);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    if (wcsstr(GetCommandLineW(), L"--self-update")) {
+        RunSelfUpdate();
+        return 0;
+    }
+
+    // Check for updates at start.
+    std::wstring updateUrl;
+    std::wstring remoteVersion;
+    if (CheckForUpdate(updateUrl, remoteVersion)) {
+        if (consoleEnabled)
+            std::wcout << L"Update available: v" << remoteVersion << L" (current v" << UYA_LAUNCHER_VERSION << L")" << std::endl;
+
+        wchar_t cmd[MAX_PATH * 2];
+        swprintf_s(cmd, L"\"%s\"", GetExecutablePath().c_str());
+
+        STARTUPINFOW si{};
+        PROCESS_INFORMATION pi{};
+        si.cb = sizeof(si);
+
+        CreateProcessW(
+            nullptr,
+            cmd,
+            nullptr,
+            nullptr,
+            FALSE,
+            0,
+            nullptr,
+            nullptr,
+            &si,
+            &pi
+        );
+    }
+
     // Check if this is first run OR if config is incomplete
     bool firstRun = IsFirstRun();
     bool configIncomplete = !firstRun && !IsConfigComplete();
-    
     if (firstRun || configIncomplete)
     {
         if (configIncomplete && consoleEnabled)
             std::cout << "Incomplete config detected - showing setup dialog" << std::endl;
-        
         // Show first-run setup dialog
         if (!ShowFirstRunDialog(hInstance, NULL, false))
         {

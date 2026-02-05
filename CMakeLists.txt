@@ -13,6 +13,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR})
 include_directories(include)
 add_executable(UYALauncher WIN32 
     src/main.cpp 
+    src/updater.cpp
     src/config.cpp 
     src/patches.cpp 
     src/firstrun.cpp 

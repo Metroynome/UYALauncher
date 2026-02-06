@@ -31,12 +31,10 @@ BOOL WINAPI ConsoleHandler(DWORD signal);
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     // Handle self-update command line argument
-    if (wcsstr(GetCommandLineW(), L"--self-update"))
-    {
+    if (wcsstr(GetCommandLineW(), L"--self-update")){
         std::wstring cmdLine = GetCommandLineW();
         size_t pos = cmdLine.find(L"--self-update");
-        if (pos != std::wstring::npos)
-        {
+        if (pos != std::wstring::npos) {
             std::wstring args = cmdLine.substr(pos + 14); // skip "--self-update "
             args.erase(0, args.find_first_not_of(L" \""));
             args.erase(args.find_last_not_of(L" \"") + 1);
@@ -45,17 +43,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             size_t sep = args.find(L"|");
             std::wstring newExePath;
             std::wstring remoteVersion;
-            if (sep != std::wstring::npos)
-            {
+            if (sep != std::wstring::npos) {
                 newExePath = args.substr(0, sep);
                 remoteVersion = args.substr(sep + 1);
-            }
-            else
-            {
+            } else {
                 newExePath = args;
                 remoteVersion = L"0.0.0";
             }
-
             RunSelfUpdate(newExePath, remoteVersion);
         }
         return 0;
@@ -69,18 +63,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     bool configIncomplete = !firstRun && !IsConfigComplete();
 
     // Check for updates at start
-    if (!firstRun && !justUpdated)
-    {
+    if (!firstRun && !justUpdated) {
         Configuration tempConfig = LoadConfig();
-        if (tempConfig.autoUpdate)
-        {
+        if (tempConfig.autoUpdate) {
             RunUpdater(true);
         }
     }
 
     // Show setup dialog if needed
-    if (firstRun || configIncomplete)
-    {
+    if (firstRun || configIncomplete) {
         if (configIncomplete && consoleEnabled)
             std::cout << "Incomplete config detected - showing setup dialog" << std::endl;
         
@@ -100,8 +91,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ApplyConfig(config);
     
     // Setup console if enabled
-    if (consoleEnabled)
-    {
+    if (consoleEnabled) {
         AllocConsole();
         FILE* fDummy;
         freopen_s(&fDummy, "CONOUT$", "w", stdout);
@@ -132,12 +122,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (!RegisterClassExW(&wc))
         return 0;
 
-    if (embedWindow)
-    {
+    if (embedWindow) {
         // Create visible window for embedding
-        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", 
-                                     WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 
-                                     960, 720, NULL, NULL, hInstance, NULL);
+        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 960, 720, NULL, NULL, hInstance, NULL);
         if (mainWindow == NULL)
             return 0;
         
@@ -146,13 +133,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         
         if (consoleEnabled)
             std::cout << "Main wrapper window created." << std::endl;
-    }
-    else
-    {
+    } else {
         // Create hidden message-only window for hotkeys
-        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", 
-                                     WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 
-                                     1, 1, HWND_MESSAGE, NULL, hInstance, NULL);
+        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, HWND_MESSAGE, NULL, hInstance, NULL);
         if (mainWindow == NULL)
             return 0;
         
@@ -164,8 +147,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     RegisterHotkeys();
 
     // Update custom maps if ISO is selected
-    if (!isoPath.empty())
-    {
+    if (!isoPath.empty()) {
         std::string isoPathNarrow(isoPath.begin(), isoPath.end());
         std::string mapRegionNarrow(mapRegion.begin(), mapRegion.end());
         
@@ -176,31 +158,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Launch PCSX2
-    if (!LaunchPCSX2(isoPath, pcsx2Path, consoleEnabled))
-    {
+    if (!LaunchPCSX2(isoPath, pcsx2Path, consoleEnabled)) {
         if (consoleEnabled)
             FreeConsole();
         return 1;
     }
 
     // Embed PCSX2 window if in embed mode
-    if (embedWindow)
-    {
+    if (embedWindow) {
         EmbedPCSX2Window(mainWindow, consoleEnabled);
     }
 
     // Start process monitor thread
     std::thread monitorThread(MonitorPCSX2Process, mainWindow, consoleEnabled);
-
     if (consoleEnabled)
         std::cout << "Entering message loop..." << std::endl;
 
     // Message loop (works for both embed and non-embed modes)
     MSG msg = {0};
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-        if (msg.message == WM_HOTKEY)
-        {
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        if (msg.message == WM_HOTKEY) {
             HandleHotkey(msg.wParam);
         }
         TranslateMessage(&msg);
@@ -229,26 +206,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
-        case WM_SIZE:
-        {
-            if (g_pcsx2Window)
-            {
+        case WM_SIZE: {
+            if (g_pcsx2Window) {
                 RECT rect;
                 GetClientRect(hwnd, &rect);
                 SetWindowPos(g_pcsx2Window, NULL, 0, 0, rect.right, rect.bottom, SWP_NOZORDER);
             }
             break;
         }
-        case WM_CLOSE:
-        {
+        case WM_CLOSE: {
             if (consoleEnabled)
                 std::cout << "Window closing..." << std::endl;
             
             DestroyWindow(hwnd);
             break;
         }
-        case WM_DESTROY:
-        {
+        case WM_DESTROY: {
             g_pcsx2Running = false;
             PostQuitMessage(0);
             break;
@@ -276,10 +249,8 @@ void UnregisterHotkeys()
 
 void HandleHotkey(int hotkeyId)
 {
-    switch (hotkeyId)
-    {
-        case HOTKEY_UPDATE_MAPS:
-        {
+    switch (hotkeyId) {
+        case HOTKEY_UPDATE_MAPS: {
             if (consoleEnabled)
                 std::cout << "Manual map update triggered..." << std::endl;
             
@@ -287,8 +258,7 @@ void HandleHotkey(int hotkeyId)
             std::wstring isoPath = LoadConfigValue(L"DefaultISO");
             std::wstring mapRegion = LoadConfigValue(L"MapRegion");
             
-            if (!isoPath.empty() && !mapRegion.empty())
-            {
+            if (!isoPath.empty() && !mapRegion.empty()) {
                 std::string isoPathNarrow(isoPath.begin(), isoPath.end());
                 std::string mapRegionNarrow(mapRegion.begin(), mapRegion.end());
                 
@@ -296,15 +266,13 @@ void HandleHotkey(int hotkeyId)
             }
             break;
         }
-        case HOTKEY_OPEN_FIRSTRUN:
-        {
+        case HOTKEY_OPEN_FIRSTRUN: {
             if (consoleEnabled)
                 std::cout << "Opening First Run configuration..." << std::endl;
 
             ShowFirstRunDialog(GetModuleHandle(NULL), mainWindow, true);
             
-            if (consoleEnabled)
-            {
+            if (consoleEnabled) {
                 if (settings.cancelled)
                     std::cout << "Configuration cancelled." << std::endl;
                 else
@@ -312,8 +280,7 @@ void HandleHotkey(int hotkeyId)
             }
 
             // Check if relaunch was requested
-            if (!settings.cancelled && settings.relaunch)
-            {
+            if (!settings.cancelled && settings.relaunch) {
                 if (consoleEnabled)
                     std::cout << "Relaunching launcher..." << std::endl;
 
@@ -324,13 +291,10 @@ void HandleHotkey(int hotkeyId)
                 // Launch new instance
                 STARTUPINFOW si = { sizeof(si) };
                 PROCESS_INFORMATION pi = {0};
-                if (!CreateProcessW(exePath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
-                {
+                if (!CreateProcessW(exePath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
                     if (consoleEnabled)
                         std::cout << "Failed to relaunch launcher. Error: " << GetLastError() << std::endl;
-                }
-                else
-                {
+                } else {
                     if (consoleEnabled)
                         std::cout << "Launcher restarted successfully!" << std::endl;
                     CloseHandle(pi.hProcess);

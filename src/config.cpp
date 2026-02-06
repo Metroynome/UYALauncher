@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <shlobj.h>
 #include "patches.h"
+#include "updater.h"
 
 Configuration config;
 static std::wstring g_ConfigPath;
@@ -19,16 +20,22 @@ Configuration LoadConfig()
     config.bootToMultiplayer = (LoadConfigValue(L"BootToMultiplayer") == L"true");
     config.wideScreen = (LoadConfigValue(L"WideScreen") == L"true");
     config.progressiveScan = (LoadConfigValue(L"ProgressiveScan") == L"true");
-    
-    // showConsole is optional.  defaults to false.
+
     std::wstring showConsoleStr = LoadConfigValue(L"ShowConsole");
     config.showConsole = (!showConsoleStr.empty() && showConsoleStr == L"true");
 
-    // Set defaults
     if (config.mapRegion.empty()) config.mapRegion = L"NTSC";
-    
+
+    std::wstring installedVersion = GetInstalledVersion();
+    if (installedVersion.empty() || installedVersion == L"0.0.0") {
+        SetInstalledVersion(UYA_LAUNCHER_VERSION);
+        installedVersion = UYA_LAUNCHER_VERSION;
+    }
+    config.version = installedVersion;
+
     return config;
 }
+
 
 void SaveConfig(const Configuration& config)
 {
@@ -118,9 +125,9 @@ void SaveConfigValue(const std::wstring& key, const std::wstring& value)
     if (!keyFound)
         buffer << key << L"=" << value << L"\n";
 
-    std::wofstream outFile(GetConfigPath());
-    if (outFile.is_open())
-        outFile << buffer.str();
+    // std::wofstream outFile(GetConfigPath());
+    // if (outFile.is_open())
+    //     outFile << buffer.str();
 }
 
 bool IsFirstRun()
@@ -140,4 +147,33 @@ bool IsConfigComplete()
     if (LoadConfigValue(L"ProgressiveScan").empty()) return false;
 
     return true;
+}
+
+std::wstring GetInstalledVersion()
+{
+    // Use AppData config path
+    wchar_t path[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, path);
+    std::wstring iniPath = std::wstring(path) + L"\\UYALauncher\\config.ini";
+
+    wchar_t version[32] = {0};
+    GetPrivateProfileStringW(L"Launcher", L"Version", L"0.0.0", version, 32, iniPath.c_str());
+    return std::wstring(version);
+}
+
+void SetInstalledVersion(const std::wstring& version)
+{
+    wchar_t path[MAX_PATH];
+    SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, path);
+    std::wstring iniPath = std::wstring(path) + L"\\UYALauncher\\config.ini";
+
+    WritePrivateProfileStringW(L"Launcher", L"Version", version.c_str(), iniPath.c_str());
+}
+
+void InitializeVersion()
+{
+    std::wstring installedVersion = GetInstalledVersion();
+    if (installedVersion.empty() || installedVersion == L"0.0.0") {
+        SetInstalledVersion(UYA_LAUNCHER_VERSION);
+    }
 }

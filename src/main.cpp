@@ -25,6 +25,7 @@ std::atomic<bool> shouldRestart(false);
 HWND mainWindow = NULL;
 HWND pcsx2Window = NULL;
 bool consoleEnabled = false;
+static bool justUpdated = false;
 
 // Function declarations
 std::wstring SelectISOFile();
@@ -43,24 +44,46 @@ BOOL WINAPI ConsoleHandler(DWORD signal);
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     if (wcsstr(GetCommandLineW(), L"--self-update")) {
-        RunSelfUpdate();
-        return 0;
+        if (wcsstr(GetCommandLineW(), L"--self-update")) {
+            std::wstring cmdLine = GetCommandLineW();
+            size_t pos = cmdLine.find(L"--self-update");
+            if (pos != std::wstring::npos) {
+                std::wstring args = cmdLine.substr(pos + 14); // skip "--self-update "
+                args.erase(0, args.find_first_not_of(L" \""));
+                args.erase(args.find_last_not_of(L" \"") + 1);
+
+                // Format: "<newExePath>|<remoteVersion>"
+                size_t sep = args.find(L"|");
+                std::wstring newExePath;
+                std::wstring remoteVersion;
+                if (sep != std::wstring::npos) {
+                    newExePath = args.substr(0, sep);
+                    remoteVersion = args.substr(sep + 1);
+                } else {
+                    newExePath = args;
+                    remoteVersion = L"0.0.0";
+                }
+
+                RunSelfUpdate(newExePath, remoteVersion);
+            }
+            return 0;
+        }
     }
 
     // Check if this is first run OR if config is incomplete
     bool firstRun = IsFirstRun();
     bool configIncomplete = !firstRun && !IsConfigComplete();
 
+    // if (wcsstr(GetCommandLineW(), L"--just-updated")) {
+    //     MessageBoxW(NULL, L"UYA Launcher has been updated successfully!\n\n", 
+    //                 L"Update Complete", MB_OK | MB_ICONINFORMATION);
+    // }
+
     // Check for updates at start
-    if (!firstRun) {
+    if (!firstRun && !justUpdated) {
         Configuration tempConfig = LoadConfig();
         if (tempConfig.autoUpdate) {
-            UpdateResult result = RunUpdater(true);
-
-            if (result == UpdateResult::Updated) {
-                // The updater has launched the new version
-                ExitProcess(0);
-            }
+            RunUpdater(true);
         }
     }
 
@@ -556,7 +579,7 @@ void HandleHotkey(int hotkeyId)
                     CloseHandle(pi.hThread);
                 }
 
-                // Terminate current launcher
+                // Terminate PCSX2 and current launcher
                 running = false;
                 if (processInfo.hProcess)
                     TerminateProcess(processInfo.hProcess, 0);

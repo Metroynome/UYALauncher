@@ -2,6 +2,7 @@
 #include <string>
 
 struct Configuration {
+    std::wstring version;
     std::wstring isoPath;
     std::wstring pcsx2Path;
     std::wstring mapRegion;
@@ -23,3 +24,5 @@ std::wstring LoadConfigValue(const std::wstring& key);
 void SaveConfigValue(const std::wstring& key, const std::wstring& value);
 bool IsFirstRun();
 bool IsConfigComplete();
+std::wstring GetInstalledVersion();
+void SetInstalledVersion(const std::wstring& version);

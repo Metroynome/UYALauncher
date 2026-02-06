@@ -298,7 +298,7 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_CHECKED);
     
     // Add version label next to checkbox
-    std::wstring versionText = L"(v" + std::wstring(UYA_LAUNCHER_VERSION) + L")";
+    std::wstring versionText = L"(v" + std::wstring(config.version) + L")";
     CreateWindowW(L"STATIC", versionText.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, editX + 25, y + 3, 100, 20, hwnd, NULL, hInstance, NULL);
 
     y += 35;

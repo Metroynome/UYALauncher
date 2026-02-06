@@ -1,11 +1,13 @@
 #include "updater.h"
+#include "config.h"
 #include <windows.h>
 #include <winhttp.h>
 #include <urlmon.h>
 #include <commctrl.h>
 #include <string>
 #include <vector>
-
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "urlmon.lib")
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "comctl32.lib")
@@ -15,6 +17,8 @@ static HWND g_updateProgressWindow = NULL;
 static HWND g_updateProgressBar = NULL;
 static HWND g_updateStatusText = NULL;
 static bool g_downloadComplete = false;
+
+extern PROCESS_INFORMATION processInfo;
 
 // Forward declarations for internal helpers
 static std::wstring HttpGet(const std::wstring& host, const std::wstring& path);
@@ -182,42 +186,97 @@ static bool ApplyUpdates(const std::wstring& newExePath, bool silent)
 // Main updater function
 UpdateResult RunUpdater(bool silent)
 {
+    // Check internet connectivity
     if (!CheckForInternet())
         return UpdateResult::NetworkError;
-    
+
     std::wstring downloadUrl;
     std::wstring remoteVersion;
-    
+
+    // Check if update is available
     if (!UpdatesAvailable(downloadUrl, remoteVersion))
         return UpdateResult::UpToDate;
-    
-    // Ask user ONLY if not silent
-    if (!silent) {
+
+    // Ask user only if not silent
+    if (!silent)
+    {
         std::wstring message = L"Update available: v" + remoteVersion + L"\n\n"
                               L"Current version: v" UYA_LAUNCHER_VERSION L"\n"
                               L"New version: v" + remoteVersion + L"\n\n"
-                              L"Download and install now?";
-        
+                              L"Download and install now?\n\n"
+                              L"Note: This will close the launcher and PCSX2.";
+
         if (MessageBoxW(NULL, message.c_str(), L"Update Available", MB_YESNO | MB_ICONQUESTION) != IDYES)
             return UpdateResult::UserCancelled;
     }
-    
-    // Download to temp file
+
+    // Prepare temp path for new exe
     wchar_t tempPath[MAX_PATH];
     GetTempPathW(MAX_PATH, tempPath);
     std::wstring newExePath = std::wstring(tempPath) + L"UYALauncher_new.exe";
-    
+
+    // Download update
     if (!DownloadUpdates(downloadUrl, newExePath, silent))
         return UpdateResult::Failed;
-    
-    if (!ApplyUpdates(newExePath, silent))
+
+    // *** ADD THIS SECTION HERE ***
+    // Terminate PCSX2 if it's running (before exiting)
+    if (processInfo.hProcess) {
+        TerminateProcess(processInfo.hProcess, 0);
+        WaitForSingleObject(processInfo.hProcess, 2000);
+        CloseHandle(processInfo.hProcess);
+        CloseHandle(processInfo.hThread);
+    }
+    // *** END OF NEW SECTION ***
+
+    // Get current exe path
+    wchar_t currentExe[MAX_PATH];
+    GetModuleFileNameW(NULL, currentExe, MAX_PATH);
+
+    // Build command line with pipe separator: --self-update "<newExePath>|<version>"
+    std::wstring cmdLine = L"\"" + std::wstring(currentExe) + L"\" --self-update \"" + 
+                           newExePath + L"|" + remoteVersion + L"\"";
+
+    STARTUPINFOW si = { sizeof(si) };
+    PROCESS_INFORMATION pi = {0};
+
+    if (!CreateProcessW(NULL, &cmdLine[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
         return UpdateResult::Failed;
-    
-    // Exit to let updater replace the file
+    }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    // Exit immediately
     ExitProcess(0);
-    
+
     return UpdateResult::Updated;
 }
+
+// Self-update function
+void RunSelfUpdate(const std::wstring& newExePath, const std::wstring& version)
+{
+    // Record the installed version before replacing
+    SetInstalledVersion(version);
+
+    wchar_t currentExe[MAX_PATH];
+    GetModuleFileNameW(NULL, currentExe, MAX_PATH);
+
+    // Wait a bit to ensure the original exe is ready to be replaced
+    Sleep(1000);
+
+    // Replace the old executable with the new one
+    MoveFileExW(newExePath.c_str(), currentExe, MOVEFILE_REPLACE_EXISTING);
+
+    // Launch the updated executable with --just-updated flag
+    std::wstring cmdLine = L"\"" + std::wstring(currentExe) + L"\" --just-updated";
+    ShellExecuteW(NULL, L"open", currentExe, cmdLine.c_str(), NULL, SW_SHOW);
+
+    // Exit the old process
+    ExitProcess(0);
+}
+
+
 
 std::wstring GetExecutablePath()
 {
@@ -307,11 +366,18 @@ static std::wstring ExtractJsonValue(const std::wstring& json, const std::wstrin
 // Helper function to compare versions
 static bool IsNewerVersion(const std::wstring& current, const std::wstring& remote)
 {
-    // Split versions into major.minor.patch
-    auto split = [](const std::wstring& version) -> std::vector<int> {
+    auto trim = [](const std::wstring& str) -> std::wstring {
+        size_t start = str.find_first_not_of(L" \t\r\n");
+        size_t end = str.find_last_not_of(L" \t\r\n");
+        return (start == std::wstring::npos) ? L"" : str.substr(start, end - start + 1);
+    };
+
+    auto split = [&](const std::wstring& version) -> std::vector<int> {
         std::vector<int> parts;
         std::wstring temp;
-        for (wchar_t c : version) {
+        std::wstring v = trim(version);
+
+        for (wchar_t c : v) {
             if (c == L'.') {
                 if (!temp.empty()) {
                     parts.push_back(std::stoi(temp));
@@ -324,25 +390,20 @@ static bool IsNewerVersion(const std::wstring& current, const std::wstring& remo
         if (!temp.empty()) {
             parts.push_back(std::stoi(temp));
         }
-        // Pad with zeros if needed
-        while (parts.size() < 3) {
-            parts.push_back(0);
-        }
+
+        while (parts.size() < 3) parts.push_back(0); // pad to major.minor.patch
         return parts;
     };
-    
-    auto currentParts = split(current);
-    auto remoteParts = split(remote);
-    
-    // Compare major.minor.patch
+
+    auto cur = split(current);
+    auto rem = split(remote);
+
     for (size_t i = 0; i < 3; i++) {
-        if (remoteParts[i] > currentParts[i])
-            return true;
-        if (remoteParts[i] < currentParts[i])
-            return false;
+        if (rem[i] > cur[i]) return true;
+        if (rem[i] < cur[i]) return false;
     }
-    
-    return false; // Versions are equal
+
+    return false; // equal
 }
 
 bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion)
@@ -361,7 +422,8 @@ bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion
 
     outRemoteVersion = tag;
 
-    if (!IsNewerVersion(UYA_LAUNCHER_VERSION, tag))
+    std::wstring currentVersion = GetInstalledVersion();
+    if (!IsNewerVersion(currentVersion, tag))
         return false;
 
     outDownloadUrl = ExtractJsonValue(json, L"browser_download_url");
@@ -372,22 +434,4 @@ bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion
 bool DownloadFile(const std::wstring& url, const std::wstring& outPath)
 {
     return SUCCEEDED(URLDownloadToFileW(NULL, url.c_str(), outPath.c_str(), 0, NULL));
-}
-
-void RunSelfUpdate()
-{
-    std::wstring cmd = GetCommandLineW();
-    size_t pos = cmd.find(L"--self-update");
-    if (pos == std::wstring::npos)
-        return;
-
-    std::wstring newExe = cmd.substr(pos + 14);
-    newExe.erase(0, newExe.find_first_not_of(L" \""));
-    newExe.erase(newExe.find_last_not_of(L" \"") + 1);
-
-    wchar_t currentExe[MAX_PATH];
-    GetModuleFileNameW(NULL, currentExe, MAX_PATH);
-    Sleep(1000);
-    MoveFileExW(newExe.c_str(), currentExe, MOVEFILE_REPLACE_EXISTING);
-    ShellExecuteW(NULL, L"open", currentExe, NULL, NULL, SW_SHOW);
 }

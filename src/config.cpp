@@ -125,9 +125,9 @@ void SaveConfigValue(const std::wstring& key, const std::wstring& value)
     if (!keyFound)
         buffer << key << L"=" << value << L"\n";
 
-    // std::wofstream outFile(GetConfigPath());
-    // if (outFile.is_open())
-    //     outFile << buffer.str();
+    std::wofstream outFile(GetConfigPath());
+    if (outFile.is_open())
+        outFile << buffer.str();
 }
 
 bool IsFirstRun()

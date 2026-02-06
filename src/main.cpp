@@ -83,7 +83,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     config = LoadConfig();
     std::wstring isoPath = config.isoPath;
     std::wstring pcsx2Path = config.pcsx2Path;
-    std::wstring mapRegion = config.mapRegion;
+    std::wstring mapRegion = config.region;
     bool embedWindow = config.embedWindow;
     consoleEnabled = config.showConsole;
     
@@ -255,8 +255,8 @@ void HandleHotkey(int hotkeyId)
                 std::cout << "Manual map update triggered..." << std::endl;
             
             // Get ISO path and region from config
-            std::wstring isoPath = LoadConfigValue(L"DefaultISO");
-            std::wstring mapRegion = LoadConfigValue(L"MapRegion");
+            std::wstring isoPath = LoadConfigValue(L"ISO");
+            std::wstring mapRegion = LoadConfigValue(L"Region");
             
             if (!isoPath.empty() && !mapRegion.empty()) {
                 std::string isoPathNarrow(isoPath.begin(), isoPath.end());

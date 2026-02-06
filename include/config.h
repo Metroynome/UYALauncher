@@ -5,7 +5,7 @@ struct Configuration {
     std::wstring version;
     std::wstring isoPath;
     std::wstring pcsx2Path;
-    std::wstring mapRegion;
+    std::wstring region;
     bool autoUpdate;
     bool embedWindow;
     bool bootToMultiplayer;

@@ -102,7 +102,7 @@ void GetConfigFromDialog(HWND hwnd, Configuration& config)
     int sel = SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
     wchar_t region[32];
     SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)region);
-    config.mapRegion = region;
+    config.region = region;
 
     // get all other items
     config.autoUpdate = (IsDlgButtonChecked(hwnd, IDC_AUTO_UPDATE_CHECK) == BST_CHECKED);
@@ -372,9 +372,9 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
         );
     }
     // Load existing config values if they exist
-    std::wstring existingISO = LoadConfigValue(L"DefaultISO");
-    std::wstring existingPCSX2 = LoadConfigValue(L"PCSX2Path");
-    std::wstring existingRegion = LoadConfigValue(L"MapRegion");
+    std::wstring existingISO = LoadConfigValue(L"ISO");
+    std::wstring existingPCSX2 = LoadConfigValue(L"PCSX2");
+    std::wstring existingRegion = LoadConfigValue(L"Region");
     std::wstring existingEmbed = LoadConfigValue(L"EmbedWindow");
     std::wstring existingBootMP = LoadConfigValue(L"BootToMultiplayer");
     std::wstring existingWideScreen = LoadConfigValue(L"WideScreen");

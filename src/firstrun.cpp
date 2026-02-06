@@ -99,7 +99,7 @@ void GetConfigFromDialog(HWND hwnd, Configuration& config)
 
     // Get region selection
     HWND hCombo = GetDlgItem(hwnd, IDC_REGION_COMBO);
-    int sel = SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
+    LRESULT sel = SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
     wchar_t region[32];
     SendMessageW(hCombo, CB_GETLBTEXT, sel, (LPARAM)region);
     config.region = region;
@@ -115,8 +115,7 @@ void GetConfigFromDialog(HWND hwnd, Configuration& config)
 
 INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_INITDIALOG:
-        {
+        case WM_INITDIALOG: {
             g_firstRunDlg = hwnd;
             settings.relaunch = false;
             
@@ -133,8 +132,7 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             return TRUE;
         }
         
-        case WM_COMMAND:
-        {
+        case WM_COMMAND: {
             // Check for text change in edit boxes
             if (HIWORD(wParam) == EN_CHANGE) {
                 if (LOWORD(wParam) == IDC_ISO_PATH_EDIT || LOWORD(wParam) == IDC_PCSX2_PATH_EDIT) {
@@ -144,25 +142,20 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             }
             
             switch (LOWORD(wParam)) {
-                case IDC_ISO_BROWSE_BTN:
-                {
+                case IDC_ISO_BROWSE_BTN: {
                     std::wstring path = BrowseForISO(hwnd);
                     if (!path.empty())
                         SetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, path.c_str());
                     return TRUE;
                 }
-                
-                case IDC_PCSX2_BROWSE_BTN:
-                {
+                case IDC_PCSX2_BROWSE_BTN: {
                     std::wstring path = BrowseForPCSX2(hwnd);
                     if (!path.empty())
                         SetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, path.c_str());
                     return TRUE;
                 }
-                
-                case IDC_LAUNCH_BTN:
-                {
-                    // Get Config f rom dialog settings
+                case IDC_LAUNCH_BTN: {
+                    // Get Config from dialog settings
                     GetConfigFromDialog(hwnd, config);
                     
                     // Save to file
@@ -178,23 +171,20 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                     return true;
                 }
                 
-                case IDCANCEL:
-                {
+                case IDCANCEL: {
                     settings.cancelled = true;
                     DestroyWindow(hwnd);
                     return true;
                 }
                 case IDC_SAVE_BTN:
-                case IDC_SAVE_RELAUNCH_BTN:
-                {
+                case IDC_SAVE_RELAUNCH_BTN: {
                     settings.relaunch = (LOWORD(wParam) == IDC_SAVE_RELAUNCH_BTN);
 
                     // Reuse existing OK logic
                     SendMessageW(hwnd, WM_COMMAND, IDC_LAUNCH_BTN, 0);
                     return true;
                 }
-                case IDC_UPDATE_BTN:
-                {
+                case IDC_UPDATE_BTN: {
                     EnableWindow(GetDlgItem(hwnd, IDC_UPDATE_BTN), FALSE);
                     SetDlgItemTextW(hwnd, IDC_UPDATE_BTN, L"Checking...");
                     
@@ -238,8 +228,8 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     wc.hInstance = hInstance;
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.lpszClassName = L"FirstRunDialogClass";
-    wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));      // Add this line
-    wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));    // Add this line
+    wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));
+    wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));
     RegisterClassExW(&wc);
     
     // Create controls with cleaner layout
@@ -330,107 +320,44 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     // Launch button
     if (!hotkeyMode) {
         // Normal first run: Launch button
-        CreateWindowW(
-            L"BUTTON",
-            L"Launch",
-            WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            launchButtonX, y,
-            launchButtonWidth, launchButtonHeight,
-            hwnd, (HMENU)IDC_LAUNCH_BTN, hInstance, NULL
-        );
+        CreateWindowW(L"BUTTON",L"Launch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, launchButtonX, y, launchButtonWidth, launchButtonHeight, hwnd, (HMENU)IDC_LAUNCH_BTN, hInstance, NULL);
     } else {
         // Check for Updates
-        CreateWindowW(
-            L"BUTTON",
-            L"Check for Updates",
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            launchButtonX, y,
-            launchButtonWidth, 30,
-            hwnd, (HMENU)IDC_UPDATE_BTN, hInstance, NULL
-        );
+        CreateWindowW(L"BUTTON", L"Check for Updates", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, launchButtonX, y, launchButtonWidth, 30, hwnd, (HMENU)IDC_UPDATE_BTN, hInstance, NULL);
         y += 40;
 
         // Hotkey mode: Save + Save & Relaunch
-        CreateWindowW(
-            L"BUTTON",
-            L"Save",
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            launchButtonX, y,
-            launchButtonWidth, 30,
-            hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL
-        );
-
+        CreateWindowW(L"BUTTON", L"Save", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, launchButtonX, y, launchButtonWidth, 30, hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL);
         y += 40;
 
-        CreateWindowW(
-            L"BUTTON",
-            L"Save and Relaunch",
-            WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            launchButtonX, y,
-            launchButtonWidth, 30,
-            hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL
-        );
+        CreateWindowW(L"BUTTON", L"Save and Relaunch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, launchButtonX, y, launchButtonWidth, 30, hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL);
     }
-    // Load existing config values if they exist
-    std::wstring existingISO = LoadConfigValue(L"ISO");
-    std::wstring existingPCSX2 = LoadConfigValue(L"PCSX2");
-    std::wstring existingRegion = LoadConfigValue(L"Region");
-    std::wstring existingEmbed = LoadConfigValue(L"EmbedWindow");
-    std::wstring existingBootMP = LoadConfigValue(L"BootToMultiplayer");
-    std::wstring existingWideScreen = LoadConfigValue(L"WideScreen");
-    std::wstring existingProgressiveScan = LoadConfigValue(L"ProgressiveScan");
-    std::wstring existingAutoUpdate = LoadConfigValue(L"AutoUpdate");
-
+    
+    // Load existing config and populate dialog
+    Configuration existingConfig = LoadConfig();
 
     // Set ISO path if exists
-    if (!existingISO.empty())
-        SetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, existingISO.c_str());
+    if (!existingConfig.isoPath.empty())
+        SetDlgItemTextW(hwnd, IDC_ISO_PATH_EDIT, existingConfig.isoPath.c_str());
 
     // Set PCSX2 path if exists
-    if (!existingPCSX2.empty())
-        SetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, existingPCSX2.c_str());
+    if (!existingConfig.pcsx2Path.empty())
+        SetDlgItemTextW(hwnd, IDC_PCSX2_PATH_EDIT, existingConfig.pcsx2Path.c_str());
 
     // Set region dropdown if exists
-    if (!existingRegion.empty())
-    {
+    if (!existingConfig.region.empty()) {
         HWND hComboForInit = GetDlgItem(hwnd, IDC_REGION_COMBO);
-        if (existingRegion == L"NTSC")
-            SendMessageW(hComboForInit, CB_SETCURSEL, 0, 0);
-        else if (existingRegion == L"PAL")
-            SendMessageW(hComboForInit, CB_SETCURSEL, 1, 0);
-        else if (existingRegion == L"Both")
-            SendMessageW(hComboForInit, CB_SETCURSEL, 2, 0);
+        int option = (existingConfig.region == L"PAL") ? 1 : 
+                    (existingConfig.region == L"Both") ? 2 : 0;
+        SendMessageW(hComboForInit, CB_SETCURSEL, option, 0);
     }
 
-    // Set embed checkbox if exists (default to true if not set)
-    if (!existingEmbed.empty() && existingEmbed == L"false")
-        CheckDlgButton(hwnd, IDC_EMBED_CHECK, BST_UNCHECKED);
-    else
-        CheckDlgButton(hwnd, IDC_EMBED_CHECK, BST_CHECKED);
-
-    // Set boot to MP checkbox if exists (default to true if not set)
-    if (!existingBootMP.empty() && existingBootMP == L"false")
-        CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, BST_UNCHECKED);
-    else
-        CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, BST_CHECKED);
-
-    // Set widescreen checkbox if exists (default to true if not set)
-    if (!existingWideScreen.empty() && existingWideScreen == L"false")
-        CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, BST_UNCHECKED);
-    else
-        CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, BST_CHECKED);
-
-    // Set progresive scan checkbox if exists (default to true if not set)
-    if (!existingProgressiveScan.empty() && existingProgressiveScan == L"false")
-        CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_UNCHECKED);
-    else
-        CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
-
-    // Set auto update checkbox if exists (default to true if not set)
-    if (!existingAutoUpdate.empty() && existingAutoUpdate == L"false")
-        CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_UNCHECKED);
-    else
-        CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_CHECKED);
+    // Set all checkboxes from config
+    CheckDlgButton(hwnd, IDC_EMBED_CHECK, existingConfig.embedWindow ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, existingConfig.bootToMultiplayer ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, existingConfig.wideScreen ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, existingConfig.progressiveScan ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, existingConfig.autoUpdate ? BST_CHECKED : BST_UNCHECKED);
 
     // Set dialog proc
     SetWindowLongPtrW(hwnd, DWLP_DLGPROC, (LONG_PTR)FirstRunDlgProc);

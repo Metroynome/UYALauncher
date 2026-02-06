@@ -14,7 +14,7 @@ enum class UpdateResult {
     UserCancelled
 };
 
-UpdateResult RunUpdater(bool silent = false);
+UpdateResult RunUpdater(bool silent);
 bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion);
 void RunSelfUpdate();
 bool DownloadFile(const std::wstring& url, const std::wstring& outPath);

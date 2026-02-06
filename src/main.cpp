@@ -55,7 +55,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (!firstRun) {
         Configuration tempConfig = LoadConfig();
         if (tempConfig.autoUpdate) {
-            UpdateResult result = RunUpdater(false);
+            UpdateResult result = RunUpdater(true);
+
+            if (result == UpdateResult::Updated) {
+                // The updater has launched the new version
+                ExitProcess(0);
+            }
         }
     }
 

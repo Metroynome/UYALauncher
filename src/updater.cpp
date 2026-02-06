@@ -2,16 +2,26 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <urlmon.h>
+#include <commctrl.h>
 #include <string>
+#include <vector>
 
 #pragma comment(lib, "urlmon.lib")
 #pragma comment(lib, "winhttp.lib")
+#pragma comment(lib, "comctl32.lib")
+
+// Progress tracking
+static HWND g_updateProgressWindow = NULL;
+static HWND g_updateProgressBar = NULL;
+static HWND g_updateStatusText = NULL;
+static bool g_downloadComplete = false;
 
 // Forward declarations for internal helpers
 static std::wstring HttpGet(const std::wstring& host, const std::wstring& path);
 static std::wstring ExtractJsonValue(const std::wstring& json, const std::wstring& key);
+static bool IsNewerVersion(const std::wstring& current, const std::wstring& remote);
+static LRESULT CALLBACK UpdateProgressWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Check for internet connectivity
 // Check for internet connectivity
 static bool CheckForInternet()
 {
@@ -35,14 +45,118 @@ static bool UpdatesAvailable(std::wstring& outUrl, std::wstring& outVersion)
     return CheckForUpdate(outUrl, outVersion);
 }
 
+// Progress window procedure
+static LRESULT CALLBACK UpdateProgressWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        case WM_CLOSE:
+            return 0; // Don't allow closing during download
+        default:
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+    return 0;
+}
+
+// Download progress callback class
+class DownloadBindStatusCallback : public IBindStatusCallback
+{
+public:
+    STDMETHOD(OnStartBinding)(DWORD, IBinding*) { return S_OK; }
+    STDMETHOD(GetPriority)(LONG*) { return E_NOTIMPL; }
+    STDMETHOD(OnLowResource)(DWORD) { return S_OK; }
+    STDMETHOD(OnProgress)(ULONG ulProgress, ULONG ulProgressMax, ULONG ulStatusCode, LPCWSTR szStatusText)
+    {
+        if (ulProgressMax > 0 && g_updateProgressBar) {
+            int percent = (int)((ulProgress * 100) / ulProgressMax);
+            SendMessage(g_updateProgressBar, PBM_SETPOS, percent, 0);
+            
+            wchar_t status[256];
+            swprintf_s(status, L"Downloading update... %d%%", percent);
+            SendMessage(g_updateStatusText, WM_SETTEXT, 0, (LPARAM)status);
+        }
+        return S_OK;
+    }
+    STDMETHOD(OnStopBinding)(HRESULT, LPCWSTR) { g_downloadComplete = true; return S_OK; }
+    STDMETHOD(GetBindInfo)(DWORD*, BINDINFO*) { return S_OK; }
+    STDMETHOD(OnDataAvailable)(DWORD, DWORD, FORMATETC*, STGMEDIUM*) { return S_OK; }
+    STDMETHOD(OnObjectAvailable)(REFIID, IUnknown*) { return S_OK; }
+    STDMETHOD_(ULONG, AddRef)() { return 1; }
+    STDMETHOD_(ULONG, Release)() { return 1; }
+    STDMETHOD(QueryInterface)(REFIID riid, void** ppv)
+    {
+        if (riid == IID_IUnknown || riid == IID_IBindStatusCallback) {
+            *ppv = this;
+            return S_OK;
+        }
+        return E_NOINTERFACE;
+    }
+};
+
 // Download the update
 static bool DownloadUpdates(const std::wstring& downloadUrl, const std::wstring& outPath, bool silent)
 {
-    if (!silent) {
-        // Could show progress dialog here if needed
+    // Always show progress window
+    WNDCLASSEXW wc = {0};
+    wc.cbSize = sizeof(WNDCLASSEXW);
+    wc.lpfnWndProc = UpdateProgressWndProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.lpszClassName = L"UpdateProgressClass";
+    RegisterClassExW(&wc);
+
+    g_updateProgressWindow = CreateWindowExW(
+        0,
+        L"UpdateProgressClass",
+        L"Downloading Update",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        CW_USEDEFAULT, CW_USEDEFAULT, 400, 150,
+        NULL, NULL, GetModuleHandle(NULL), NULL
+    );
+
+    if (!g_updateProgressWindow) {
+        return DownloadFile(downloadUrl, outPath);
     }
+
+    // Create status text
+    g_updateStatusText = CreateWindowW(
+        L"STATIC", L"Starting download...",
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 20, 370, 30,
+        g_updateProgressWindow, NULL, GetModuleHandle(NULL), NULL
+    );
+
+    // Create progress bar
+    g_updateProgressBar = CreateWindowW(
+         PROGRESS_CLASSW, NULL,
+        WS_CHILD | WS_VISIBLE,
+        10, 60, 370, 30,
+        g_updateProgressWindow, NULL, GetModuleHandle(NULL), NULL
+    );
+
+    SendMessage(g_updateProgressBar, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+
+    ShowWindow(g_updateProgressWindow, SW_SHOW);
+    UpdateWindow(g_updateProgressWindow);
+
+    g_downloadComplete = false;
+
+    // Download with progress callback
+    DownloadBindStatusCallback callback;
+    HRESULT hr = URLDownloadToFileW(NULL, downloadUrl.c_str(), outPath.c_str(), 0, &callback);
     
-    return DownloadFile(downloadUrl, outPath);
+    // Show completion
+    if (SUCCEEDED(hr)) {
+        SendMessage(g_updateStatusText, WM_SETTEXT, 0, (LPARAM)L"Download complete!");
+        Sleep(500);
+    }
+
+    DestroyWindow(g_updateProgressWindow);
+    UnregisterClassW(L"UpdateProgressClass", GetModuleHandle(NULL));
+    g_updateProgressWindow = NULL;
+    g_updateProgressBar = NULL;
+    g_updateStatusText = NULL;
+
+    return SUCCEEDED(hr);
 }
 
 // Apply the downloaded update
@@ -77,7 +191,7 @@ UpdateResult RunUpdater(bool silent)
     if (!UpdatesAvailable(downloadUrl, remoteVersion))
         return UpdateResult::UpToDate;
     
-    // Ask user if not silent
+    // Ask user ONLY if not silent
     if (!silent) {
         std::wstring message = L"Update available: v" + remoteVersion + L"\n\n"
                               L"Current version: v" UYA_LAUNCHER_VERSION L"\n"
@@ -87,7 +201,6 @@ UpdateResult RunUpdater(bool silent)
         if (MessageBoxW(NULL, message.c_str(), L"Update Available", MB_YESNO | MB_ICONQUESTION) != IDYES)
             return UpdateResult::UserCancelled;
     }
-    // If silent mode, automatically proceed with update
     
     // Download to temp file
     wchar_t tempPath[MAX_PATH];
@@ -151,20 +264,29 @@ static std::wstring HttpGet(const std::wstring& host, const std::wstring& path)
     WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
     WinHttpReceiveResponse(hRequest, NULL);
 
-    std::wstring response;
+    // Read as bytes (char), not wide chars
+    std::string response;
     DWORD bytesRead = 0;
-    wchar_t buffer[1024];
+    char buffer[1024];
 
     while (WinHttpReadData(hRequest, buffer, sizeof(buffer), &bytesRead) && bytesRead)
     {
-        response.append(buffer, bytesRead / sizeof(wchar_t));
+        response.append(buffer, bytesRead);
     }
 
     WinHttpCloseHandle(hRequest);
     WinHttpCloseHandle(hConnect);
     WinHttpCloseHandle(hSession);
 
-    return response;
+    // Convert narrow string to wide string
+    if (response.empty())
+        return L"";
+    
+    int size = MultiByteToWideChar(CP_UTF8, 0, response.c_str(), -1, NULL, 0);
+    std::wstring wresponse(size, 0);
+    MultiByteToWideChar(CP_UTF8, 0, response.c_str(), -1, &wresponse[0], size);
+    
+    return wresponse;
 }
 
 static std::wstring ExtractJsonValue(const std::wstring& json, const std::wstring& key)
@@ -180,6 +302,47 @@ static std::wstring ExtractJsonValue(const std::wstring& json, const std::wstrin
         return L"";
 
     return json.substr(start, end - start);
+}
+
+// Helper function to compare versions
+static bool IsNewerVersion(const std::wstring& current, const std::wstring& remote)
+{
+    // Split versions into major.minor.patch
+    auto split = [](const std::wstring& version) -> std::vector<int> {
+        std::vector<int> parts;
+        std::wstring temp;
+        for (wchar_t c : version) {
+            if (c == L'.') {
+                if (!temp.empty()) {
+                    parts.push_back(std::stoi(temp));
+                    temp.clear();
+                }
+            } else if (iswdigit(c)) {
+                temp += c;
+            }
+        }
+        if (!temp.empty()) {
+            parts.push_back(std::stoi(temp));
+        }
+        // Pad with zeros if needed
+        while (parts.size() < 3) {
+            parts.push_back(0);
+        }
+        return parts;
+    };
+    
+    auto currentParts = split(current);
+    auto remoteParts = split(remote);
+    
+    // Compare major.minor.patch
+    for (size_t i = 0; i < 3; i++) {
+        if (remoteParts[i] > currentParts[i])
+            return true;
+        if (remoteParts[i] < currentParts[i])
+            return false;
+    }
+    
+    return false; // Versions are equal
 }
 
 bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion)
@@ -198,7 +361,7 @@ bool CheckForUpdate(std::wstring& outDownloadUrl, std::wstring& outRemoteVersion
 
     outRemoteVersion = tag;
 
-    if (tag == UYA_LAUNCHER_VERSION)
+    if (!IsNewerVersion(UYA_LAUNCHER_VERSION, tag))
         return false;
 
     outDownloadUrl = ExtractJsonValue(json, L"browser_download_url");

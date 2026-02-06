@@ -1,5 +1,6 @@
 #include "updater.h"
 #include "config.h"
+#include "pcsx2.h"
 #include <windows.h>
 #include <winhttp.h>
 #include <urlmon.h>
@@ -17,8 +18,6 @@ static HWND g_updateProgressWindow = NULL;
 static HWND g_updateProgressBar = NULL;
 static HWND g_updateStatusText = NULL;
 static bool g_downloadComplete = false;
-
-extern PROCESS_INFORMATION processInfo;
 
 // Forward declarations for internal helpers
 static std::wstring HttpGet(const std::wstring& host, const std::wstring& path);
@@ -219,15 +218,8 @@ UpdateResult RunUpdater(bool silent)
     if (!DownloadUpdates(downloadUrl, newExePath, silent))
         return UpdateResult::Failed;
 
-    // *** ADD THIS SECTION HERE ***
     // Terminate PCSX2 if it's running (before exiting)
-    if (processInfo.hProcess) {
-        TerminateProcess(processInfo.hProcess, 0);
-        WaitForSingleObject(processInfo.hProcess, 2000);
-        CloseHandle(processInfo.hProcess);
-        CloseHandle(processInfo.hThread);
-    }
-    // *** END OF NEW SECTION ***
+    TerminatePCSX2();
 
     // Get current exe path
     wchar_t currentExe[MAX_PATH];

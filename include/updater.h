@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-#define UYA_LAUNCHER_VERSION L"2.2.2"
+#define UYA_LAUNCHER_VERSION L"3.0.0"
 
 #define GitUser L"Metroynome"
 #define GitRepo L"UYALauncher"

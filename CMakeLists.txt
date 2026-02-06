@@ -18,6 +18,7 @@ add_executable(UYALauncher WIN32
     src/patches.cpp 
     src/firstrun.cpp 
     src/mapupdater.cpp 
+    src/pcsx2.cpp 
     src/resource.rc
 )
 

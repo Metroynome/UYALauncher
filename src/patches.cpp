@@ -1,4 +1,5 @@
 #include "patches.h"
+#include "config.h"
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -14,58 +15,39 @@ const std::wstring NTSC_MP_File = L"SCUS-97353_49536F3F.pnach";
 const std::wstring PAL_SP_File  = L"SCES-52456_17125698.pnach";
 const std::wstring PAL_MP_File  = L"SCES-52456_EDE8B391.pnach";
 
-// Global patch flags
-static bool g_bootToMultiplayer = false;
-static bool g_wideScreen = false;
-static bool g_progressiveScan = false;
+PatchFlags patch = { false, false, false };
 
 // Global patch list - ADD NEW PATCHES HERE!
-static PnachPatch g_patches[] = {
+static PnachPatch patches[] = {
     {
         L"// Boot to Multiplayer",
         L"patch=1,EE,20381590,extended,080e6010\n",
         L"patch=1,EE,20381568,extended,080ed2c2\n",
         singleplayer,
-        &g_bootToMultiplayer
+        &patch.bootToMultiplayer
     },
     {
         L"// Enable Wide Screen",
         L"patch=1,EE,001439fd,extended,00000001\n",
         L"patch=1,EE,001439fd,extended,00000001\n",
         singleplayer,
-        &g_wideScreen,
+        &patch.wideScreen
     },
     {
         L"// Enable Progressive Scan in Multiplayer",
         L"patch=1,EE,d01d5524,extended,00000101\npatch=1,EE,201d5520,extended,00000001\n",
         nullptr,
         singleplayer,
-        &g_progressiveScan
+        &patch.progressiveScan
     },
 };
 
-const int g_patchCount = sizeof(g_patches) / sizeof(g_patches[0]);
+const int patchCount = sizeof(patches) / sizeof(patches[0]);
 
-// Setters and getters
-void SetBootToMultiplayer(bool enabled) {
-    g_bootToMultiplayer = enabled;
-}
-bool GetBootToMultiplayer() {
-    return g_bootToMultiplayer;
-}
-
-void SetWideScreen(bool enabled) {
-    g_wideScreen = enabled;
-}
-bool GetWideScreen() {
-    return g_wideScreen;
-}
-
-void SetProgressiveScan(bool enabled) {
-    g_progressiveScan = enabled;
-}
-bool GetProgressiveScan() {
-    return g_progressiveScan;
+void ApplyPatches(const Configuration& config)
+{
+    patch = config.patches;
+    ManagePnachPatches(config.region, config.pcsx2Path); 
 }
 
 bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Path)
@@ -89,15 +71,13 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
         patchesFolder = patchesFolder1;
     else if (attr2 != INVALID_FILE_ATTRIBUTES && (attr2 & FILE_ATTRIBUTE_DIRECTORY))
         patchesFolder = patchesFolder2;
-    else
-    {
+    else {
         std::wcout << L"No patches folder found!" << std::endl;
         return false;
     }
 
     // Handle "Both" regions recursively
-    if (region == L"Both")
-    {
+    if (region == L"Both") {
         bool ntscResult = ManagePnachPatches(L"NTSC", pcsx2Path);
         bool palResult  = ManagePnachPatches(L"PAL", pcsx2Path);
         return ntscResult && palResult;
@@ -105,35 +85,25 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
 
     bool isPal = (region == L"PAL");
 
-    for (int p = 0; p < g_patchCount; p++)
-    {
-        const PnachPatch& patch = g_patches[p];
+    for (int p = 0; p < patchCount; p++) {
+        const PnachPatch& patch = patches[p];
         bool shouldExist = *(patch.enabledFlag);
 
         // Determine correct filename and game title
         std::wstring filename, gameTitle;
-        if (region == L"NTSC")
-        {
-            if (patch.target == singleplayer)
-            {
+        if (region == L"NTSC") {
+            if (patch.target == singleplayer) {
                 filename = NTSC_SP_File;
                 gameTitle = L"Ratchet & Clank: Up Your Arsenal Single Player (NTSC-U)";
-            }
-            else // Multiplayer
-            {
+            } else {
                 filename = NTSC_MP_File;
                 gameTitle = L"Ratchet & Clank: Up Your Arsenal Multiplayer (NTSC-U)";
             }
-        }
-        else // PAL
-        {
-            if (patch.target == singleplayer)
-            {
+        } else {
+            if (patch.target == singleplayer) {
                 filename = PAL_SP_File;
                 gameTitle = L"Ratchet & Clank 3 Single Player (PAL)";
-            }
-            else // Multiplayer
-            {
+            } else {
                 filename = PAL_MP_File;
                 gameTitle = L"Ratchet & Clank 3 Multiplayer (PAL)";
             }
@@ -144,19 +114,15 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
 
         // Load existing file or create header
         bool fileExists = (GetFileAttributesW(pnachPath.c_str()) != INVALID_FILE_ATTRIBUTES);
-        if (fileExists)
-        {
+        if (fileExists) {
             std::wifstream readFile(pnachPath);
-            if (readFile.is_open())
-            {
+            if (readFile.is_open()) {
                 std::wstring line;
                 while (std::getline(readFile, line))
                     fileLines.push_back(line);
                 readFile.close();
             }
-        }
-        else
-        {
+        } else {
             fileLines.push_back(L"gametitle=" + gameTitle);
             fileLines.push_back(L"");
         }
@@ -172,10 +138,8 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
 
         // Search for patch block
         size_t patchStart = fileLines.size();
-        for (size_t i = 0; i < fileLines.size(); i++)
-        {
-            if (fileLines[i].find(patch.description) != std::wstring::npos)
-            {
+        for (size_t i = 0; i < fileLines.size(); i++) {
+            if (fileLines[i].find(patch.description) != std::wstring::npos) {
                 patchStart = i;
                 break;
             }
@@ -183,8 +147,7 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
 
         bool patchExists = (patchStart < fileLines.size());
 
-        if (shouldExist && !patchExists)
-        {
+        if (shouldExist && !patchExists) {
             // Add patch
             std::wcout << L"Adding patch: " << patch.description << L" to " << filename << std::endl;
             fileLines.push_back(L"");
@@ -195,9 +158,7 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
             while (std::getline(stream, line))
                 if (!line.empty())
                     fileLines.push_back(line);
-        }
-        else if (!shouldExist && patchExists)
-        {
+        } else if (!shouldExist && patchExists) {
             // Remove patch
             std::wcout << L"Removing patch: " << patch.description << L" from " << filename << std::endl;
 
@@ -205,8 +166,7 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
             fileLines.erase(fileLines.begin() + i); // remove description line
 
             // Remove following patch lines
-            while (i < fileLines.size())
-            {
+            while (i < fileLines.size()) {
                 std::wstring line = fileLines[i];
                 line.erase(0, line.find_first_not_of(L" \t"));
                 if (!line.empty() && line.find(L"patch=") == 0)
@@ -218,16 +178,13 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
             // Remove preceding empty line
             if (i > 0 && i <= fileLines.size() && fileLines[i - 1].empty())
                 fileLines.erase(fileLines.begin() + i - 1);
-        }
-        else if (shouldExist && patchExists)
-        {
+        } else if (shouldExist && patchExists) {
             std::wcout << L"Patch already exists: " << patch.description << L" in " << filename << std::endl;
         }
 
         // Save file
         std::wofstream writeFile(pnachPath);
-        if (!writeFile.is_open())
-        {
+        if (!writeFile.is_open()) {
             std::wcout << L"Failed to write pnach file: " << pnachPath << std::endl;
             continue;
         }
@@ -241,5 +198,3 @@ bool ManagePnachPatches(const std::wstring& region, const std::wstring& pcsx2Pat
 
     return true;
 }
-
-

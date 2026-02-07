@@ -107,9 +107,9 @@ void GetConfigFromDialog(HWND hwnd, Configuration& config)
     // get all other items
     config.autoUpdate = (IsDlgButtonChecked(hwnd, IDC_AUTO_UPDATE_CHECK) == BST_CHECKED);
     config.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
-    config.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
-    config.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
-    config.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
+    config.patches.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
+    config.patches.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
+    config.patches.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
 }
 
 
@@ -354,9 +354,9 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
 
     // Set all checkboxes from config
     CheckDlgButton(hwnd, IDC_EMBED_CHECK, existingConfig.embedWindow ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, existingConfig.bootToMultiplayer ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, existingConfig.wideScreen ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, existingConfig.progressiveScan ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, existingConfig.patches.bootToMultiplayer ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, existingConfig.patches.wideScreen ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, existingConfig.patches.progressiveScan ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, existingConfig.autoUpdate ? BST_CHECKED : BST_UNCHECKED);
 
     // Set dialog proc

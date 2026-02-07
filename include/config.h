@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "patches.h"
 
 // Config key enum for type safety
 enum class ConfigKey {
@@ -36,10 +37,8 @@ struct Configuration {
     std::wstring region;
     bool autoUpdate;
     bool embedWindow;
-    bool bootToMultiplayer;
-    bool wideScreen;
-    bool progressiveScan;
     bool showConsole;
+    PatchFlags patches;  // Now this works!
 };
 
 extern Configuration config;

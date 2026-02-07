@@ -28,6 +28,15 @@ void HandleHotkey(int hotkeyId);
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 BOOL WINAPI ConsoleHandler(DWORD signal);
 
+// Helper function to convert wstring to string
+std::string WStringToString(const std::wstring& wstr) {
+    if (wstr.empty()) return std::string();
+    int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string result(size - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], size, nullptr, nullptr);
+    return result;
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     // Handle self-update command line argument
@@ -148,8 +157,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Update custom maps if ISO is selected
     if (!isoPath.empty()) {
-        std::string isoPathNarrow(isoPath.begin(), isoPath.end());
-        std::string mapRegionNarrow(mapRegion.begin(), mapRegion.end());
+        std::string isoPathNarrow = WStringToString(isoPath);
+        std::string mapRegionNarrow = WStringToString(mapRegion);
         
         if (consoleEnabled)
             std::cout << "Checking for custom map updates..." << std::endl;
@@ -178,7 +187,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     MSG msg = {0};
     while (GetMessage(&msg, NULL, 0, 0)) {
         if (msg.message == WM_HOTKEY) {
-            HandleHotkey(msg.wParam);
+            HandleHotkey((int)msg.wParam);
         }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
@@ -199,7 +208,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (consoleEnabled)
         FreeConsole();
 
-    return msg.wParam;
+    return (int)msg.wParam;
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

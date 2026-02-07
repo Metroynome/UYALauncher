@@ -16,9 +16,9 @@ static std::vector<ConfigFieldInfo> BuildConfigTable(Configuration& cfg)
         { ConfigKey::region, L"Region", ConfigType::String, &cfg.region },
         { ConfigKey::autoUpdate, L"AutoUpdate", ConfigType::Bool, &cfg.autoUpdate },
         { ConfigKey::embedWindow, L"EmbedWindow", ConfigType::Bool, &cfg.embedWindow },
-        { ConfigKey::bootToMultiplayer, L"BootToMultiplayer", ConfigType::Bool, &cfg.bootToMultiplayer },
-        { ConfigKey::wideScreen, L"WideScreen", ConfigType::Bool, &cfg.wideScreen },
-        {ConfigKey::progressiveScan, L"ProgressiveScan", ConfigType::Bool, &cfg.progressiveScan },
+        { ConfigKey::bootToMultiplayer, L"BootToMultiplayer", ConfigType::Bool, &cfg.patches.bootToMultiplayer },
+        { ConfigKey::wideScreen, L"WideScreen", ConfigType::Bool, &cfg.patches.wideScreen },
+        {ConfigKey::progressiveScan, L"ProgressiveScan", ConfigType::Bool, &cfg.patches.progressiveScan },
         { ConfigKey::showConsole,  L"ShowConsole", ConfigType::Bool, &cfg.showConsole },
     };
 }
@@ -82,10 +82,7 @@ void SaveConfig(const Configuration& cfg)
 
 void ApplyConfig(const Configuration& config)
 {
-    SetBootToMultiplayer(config.bootToMultiplayer);
-    SetWideScreen(config.wideScreen);
-    SetProgressiveScan(config.progressiveScan);
-    ManagePnachPatches(config.region, config.pcsx2Path); 
+    ApplyPatches(config);
 }
 
 const std::wstring& GetConfigPath()

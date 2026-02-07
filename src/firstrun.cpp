@@ -23,6 +23,7 @@
 #define IDC_SAVE_RELAUNCH_BTN       1012
 #define IDC_AUTO_UPDATE_CHECK       1013
 #define IDC_UPDATE_BTN              1014
+#define IDC_FULLSCREEN_CHECK        1015
 
 static HWND g_firstRunDlg = NULL;
 SettingsState settings;
@@ -107,8 +108,9 @@ void GetConfigFromDialog(HWND hwnd, Configuration& config)
     // get all other items
     config.autoUpdate = (IsDlgButtonChecked(hwnd, IDC_AUTO_UPDATE_CHECK) == BST_CHECKED);
     config.embedWindow = (IsDlgButtonChecked(hwnd, IDC_EMBED_CHECK) == BST_CHECKED);
+    config.fullscreen = (IsDlgButtonChecked(hwnd, IDC_FULLSCREEN_CHECK) == BST_CHECKED);
     config.patches.bootToMultiplayer = (IsDlgButtonChecked(hwnd, IDC_BOOT_MP_CHECK) == BST_CHECKED);
-    config.patches.wideScreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
+    config.patches.widescreen = (IsDlgButtonChecked(hwnd, IDC_WIDESCREEN_CHECK) == BST_CHECKED);
     config.patches.progressiveScan = (IsDlgButtonChecked(hwnd, IDC_PROGRESSIVE_SCAN_CHECK) == BST_CHECKED);
 }
 
@@ -233,104 +235,111 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     RegisterClassExW(&wc);
     
     // Create controls with cleaner layout
-    int windowWidth = 400;
-    int windowHeight = 360;
+    int window_w = 405;
+    int window_h = 395;
     int y = 20;
-    int labelWidth = 130;
-    int editX = labelWidth + 10;
-    int editWidth = 150;
-    int browseX = editX + editWidth + 10;
-    int browseWidth = 70;
-    int comboBoxWidth = 70;
-    int launchButtonWidth = 300;
-    int launchButtonHeight = 40;
-    int launchButtonX = (windowWidth - launchButtonWidth) / 2;
+    int static_w = 135;
+    int checkbox_x = static_w + 10;
+    int combobox_x = static_w + 10;
+    int edit_x = static_w + 10;
+    int edit_w = 150;
+    int browse_x = edit_x + edit_w + 10;
+    int browse_w = 70;
+    int combobox_w = 70;
+    int button_w = 300;
+    int button_h = 40;
+    int button_x = (window_w - button_w) / 2;
 
     // increate height if hotkey for config is pressed.
-    if (hotkeyMode) windowHeight += 90;
+    if (hotkeyMode) window_h += 90;
 
     // Create the dialog window - resizable
     HWND hwnd = CreateWindowExW(
         0,
-        L"#32770", // Dialog class
+        L"#32770",
         L"UYA Launcher - Setup",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
-        CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
+        CW_USEDEFAULT, CW_USEDEFAULT, window_w, window_h,
         parent, NULL, hInstance, NULL
     );
     
     if (!hwnd) return false;
 
     // ISO Path
-    CreateWindowW(L"STATIC", L"UYA ISO File:", WS_CHILD | WS_VISIBLE | SS_LEFT,  10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,  editX, y, editWidth, 24, hwnd, (HMENU)IDC_ISO_PATH_EDIT, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, browseX, y, browseWidth, 24, hwnd, (HMENU)IDC_ISO_BROWSE_BTN, hInstance, NULL);
+    CreateWindowW(L"STATIC", L"UYA ISO File:", WS_CHILD | WS_VISIBLE | SS_LEFT,  10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,  edit_x, y, edit_w, 24, hwnd, (HMENU)IDC_ISO_PATH_EDIT, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, browse_x, y, browse_w, 24, hwnd, (HMENU)IDC_ISO_BROWSE_BTN, hInstance, NULL);
     y += 35;
     
     // PCSX2 Path
-    CreateWindowW(L"STATIC", L"PCSX2 Executable:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, editX, y, editWidth, 24, hwnd, (HMENU)IDC_PCSX2_PATH_EDIT, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, browseX, y, browseWidth, 24, hwnd, (HMENU)IDC_PCSX2_BROWSE_BTN, hInstance, NULL);
+    CreateWindowW(L"STATIC", L"PCSX2 Executable:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, edit_x, y, edit_w, 24, hwnd, (HMENU)IDC_PCSX2_PATH_EDIT, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"Browse", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, browse_x, y, browse_w, 24, hwnd, (HMENU)IDC_PCSX2_BROWSE_BTN, hInstance, NULL);
     y += 35;
     
     // Region
-    CreateWindowW(L"STATIC", L"Region:", WS_CHILD | WS_VISIBLE | SS_LEFT,  10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    HWND hCombo = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, editX, y, comboBoxWidth, 100, hwnd, (HMENU)IDC_REGION_COMBO, hInstance, NULL);
+    CreateWindowW(L"STATIC", L"Region:", WS_CHILD | WS_VISIBLE | SS_LEFT,  10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    HWND hCombo = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, combobox_x, y, combobox_w, 100, hwnd, (HMENU)IDC_REGION_COMBO, hInstance, NULL);
     SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"NTSC");
     SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"PAL");
     // SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"Both");
     SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
     y += 35;
 
-    // Auto Update Launcher checkbox (NEW)
-    CreateWindowW(L"STATIC", L"Auto Update Launcher:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_AUTO_UPDATE_CHECK, hInstance, NULL);
+    // Auto Update Launcher checkbox
+    CreateWindowW(L"STATIC", L"Auto Update:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, checkbox_x, y, 300, 20, hwnd, (HMENU)IDC_AUTO_UPDATE_CHECK, hInstance, NULL);
     CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, BST_CHECKED);
     
     // Add version label next to checkbox
-    std::wstring versionText = L"(v" + std::wstring(config.version) + L")";
-    CreateWindowW(L"STATIC", versionText.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, editX + 25, y + 3, 100, 20, hwnd, NULL, hInstance, NULL);
-
+    std::wstring versionText = L"(v" + std::wstring(UYA_LAUNCHER_VERSION) + L")";
+    CreateWindowW(L"STATIC", versionText.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, checkbox_x + 25, y + 3, 100, 20, hwnd, NULL, hInstance, NULL);
     y += 35;
 
-    // Boot to Multiplayer checkbox (NEW)
-    CreateWindowW(L"STATIC", L"Boot to Multiplayer:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_BOOT_MP_CHECK, hInstance, NULL);
+    // Enable Fullscreen
+    CreateWindowW(L"STATIC", L"Start Fullscreen:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, checkbox_x, y, 300, 20, hwnd, (HMENU)IDC_FULLSCREEN_CHECK, hInstance, NULL);
+    CheckDlgButton(hwnd, IDC_FULLSCREEN_CHECK, BST_CHECKED);
+    y += 35;
+
+    // Boot to Multiplayer checkbox
+    CreateWindowW(L"STATIC", L"Boot to Multiplayer:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, checkbox_x, y, 300, 20, hwnd, (HMENU)IDC_BOOT_MP_CHECK, hInstance, NULL);
     CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, BST_CHECKED);
     y += 35;
     
-    // WideScreen checkbox (NEW)
-    CreateWindowW(L"STATIC", L"Wide Screen:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_WIDESCREEN_CHECK, hInstance, NULL);
+    // WideScreen checkbox
+    CreateWindowW(L"STATIC", L"Enable Widescreen:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, checkbox_x, y, 300, 20, hwnd, (HMENU)IDC_WIDESCREEN_CHECK, hInstance, NULL);
     CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, BST_CHECKED);
     y += 35;
 
-    // Progressive Scan checkbox (NEW)
-    // CreateWindowW(L"STATIC", L"Progressive Scan:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    // CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_PROGRESSIVE_SCAN_CHECK, hInstance, NULL);
+    // Progressive Scan checkbox
+    // CreateWindowW(L"STATIC", L"Progressive Scan:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    // CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, checkbox_x, y, 300, 20, hwnd, (HMENU)IDC_PROGRESSIVE_SCAN_CHECK, hInstance, NULL);
     // CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, BST_CHECKED);
     // y += 35;
 
     // Embed window checkbox
-    CreateWindowW(L"STATIC", L"Embed Window:", WS_CHILD | WS_VISIBLE | SS_LEFT, 10, y + 3, labelWidth, 20, hwnd, NULL, hInstance, NULL);
-    CreateWindowW(L"BUTTON", L"Embed PCSX2 in launcher", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, editX, y, 300, 20, hwnd, (HMENU)IDC_EMBED_CHECK, hInstance, NULL);
+    CreateWindowW(L"STATIC", L"Embed Window:", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP, 10, y + 3, static_w, 20, hwnd, NULL, hInstance, NULL);
+    CreateWindowW(L"BUTTON", L"Embed PCSX2 in launcher", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, checkbox_x, y, 300, 20, hwnd, (HMENU)IDC_EMBED_CHECK, hInstance, NULL);
     CheckDlgButton(hwnd, IDC_EMBED_CHECK, BST_CHECKED);
     y += 35;
     
     // Launch button
     if (!hotkeyMode) {
         // Normal first run: Launch button
-        CreateWindowW(L"BUTTON",L"Launch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, launchButtonX, y, launchButtonWidth, launchButtonHeight, hwnd, (HMENU)IDC_LAUNCH_BTN, hInstance, NULL);
+        CreateWindowW(L"BUTTON",L"Launch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, button_x, y, button_w, button_h, hwnd, (HMENU)IDC_LAUNCH_BTN, hInstance, NULL);
     } else {
         // Check for Updates
-        CreateWindowW(L"BUTTON", L"Check for Updates", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, launchButtonX, y, launchButtonWidth, 30, hwnd, (HMENU)IDC_UPDATE_BTN, hInstance, NULL);
+        CreateWindowW(L"BUTTON", L"Check for Updates", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, button_x, y, button_w, 30, hwnd, (HMENU)IDC_UPDATE_BTN, hInstance, NULL);
         y += 40;
 
         // Hotkey mode: Save + Save & Relaunch
-        CreateWindowW(L"BUTTON", L"Save", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, launchButtonX, y, launchButtonWidth, 30, hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL);
+        CreateWindowW(L"BUTTON", L"Save", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, button_x, y, button_w, 30, hwnd, (HMENU)IDC_SAVE_BTN, hInstance, NULL);
         y += 40;
 
-        CreateWindowW(L"BUTTON", L"Save and Relaunch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, launchButtonX, y, launchButtonWidth, 30, hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL);
+        CreateWindowW(L"BUTTON", L"Save and Relaunch", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, button_x, y, button_w, 30, hwnd, (HMENU)IDC_SAVE_RELAUNCH_BTN, hInstance, NULL);
     }
     
     // Load existing config and populate dialog
@@ -354,8 +363,9 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
 
     // Set all checkboxes from config
     CheckDlgButton(hwnd, IDC_EMBED_CHECK, existingConfig.embedWindow ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_FULLSCREEN_CHECK, existingConfig.fullscreen ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(hwnd, IDC_BOOT_MP_CHECK, existingConfig.patches.bootToMultiplayer ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, existingConfig.patches.wideScreen ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hwnd, IDC_WIDESCREEN_CHECK, existingConfig.patches.widescreen ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(hwnd, IDC_PROGRESSIVE_SCAN_CHECK, existingConfig.patches.progressiveScan ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(hwnd, IDC_AUTO_UPDATE_CHECK, existingConfig.autoUpdate ? BST_CHECKED : BST_UNCHECKED);
 

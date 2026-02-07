@@ -20,25 +20,25 @@ PatchFlags patch = { false, false, false };
 // Global patch list - ADD NEW PATCHES HERE!
 static PnachPatch patches[] = {
     {
+        &patch.bootToMultiplayer,
+        singleplayer,
         L"// Boot to Multiplayer",
         L"patch=1,EE,20381590,extended,080e6010\n",
         L"patch=1,EE,20381568,extended,080ed2c2\n",
-        singleplayer,
-        &patch.bootToMultiplayer
     },
     {
+        &patch.widescreen,
+        singleplayer,
         L"// Enable Wide Screen",
         L"patch=1,EE,001439fd,extended,00000001\n",
         L"patch=1,EE,001439fd,extended,00000001\n",
-        singleplayer,
-        &patch.wideScreen
     },
     {
+        &patch.progressiveScan,
+        singleplayer,
         L"// Enable Progressive Scan in Multiplayer",
         L"patch=1,EE,d01d5524,extended,00000101\npatch=1,EE,201d5520,extended,00000001\n",
         nullptr,
-        singleplayer,
-        &patch.progressiveScan
     },
 };
 

@@ -1,4 +1,5 @@
 #include "pcsx2.h"
+#include "config.h"
 #include <iostream>
 #include <thread>
 
@@ -18,10 +19,21 @@ bool LaunchPCSX2(const std::wstring& isoPath, const std::wstring& pcsx2Path, boo
 {
     if (showConsole)
         std::cout << "Launching PCSX2..." << std::endl;
+    
+    // set default arguments
+    std::wstring arguments = L"";
+
+    // ensure faster boot
+    if (config.patches.bootToMultiplayer)
+        arguments += L" -fastboot";
+
+    // enable fullscreen
+    if (config.fullscreen)
+        arguments += L" -fullscreen";
 
     // Build command line: "pcsx2.exe" "path/to/iso"
-    std::wstring cmdLine = L"\"" + pcsx2Path + L"\" \"" + isoPath + L"\"";
-    
+    std::wstring cmdLine = L"\"" + pcsx2Path + L"\"" + arguments + L" -- \"" + isoPath + L"\"";
+
     STARTUPINFOW si = {0};
     si.cb = sizeof(si);
     

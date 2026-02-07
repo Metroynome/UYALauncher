@@ -10,16 +10,16 @@ enum class PatchTarget {
 // Patch flags struct - MUST be defined BEFORE config.h includes it
 struct PatchFlags {
     bool bootToMultiplayer;
-    bool wideScreen;
+    bool widescreen;
     bool progressiveScan;
 };
 
 struct PnachPatch {
+    bool* enabledFlag;
+    PatchTarget target;
     const wchar_t* description;
     const wchar_t* ntscPatch;
     const wchar_t* palPatch;
-    PatchTarget target;
-    bool* enabledFlag;
 };
 
 // Forward declare Configuration to avoid circular dependency

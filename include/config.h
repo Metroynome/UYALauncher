@@ -4,15 +4,32 @@
 
 // Config key enum for type safety
 enum class ConfigKey {
+    // debug
+    version,
+    showConsole,
+    // launcher
     iso,
     pcsx2,
     region,
     autoUpdate,
     embedWindow,
+    fullscreen,
+    // patches
     bootToMultiplayer,
-    wideScreen,
+    widescreen,
     progressiveScan,
-    showConsole
+};
+
+struct Configuration {
+    std::wstring version;
+    bool showConsole;
+    std::wstring isoPath;
+    std::wstring pcsx2Path;
+    std::wstring region;
+    bool autoUpdate;
+    bool embedWindow;
+    bool fullscreen;
+    PatchFlags patches;  // Now this works!
 };
 
 // Config field type
@@ -28,17 +45,6 @@ struct ConfigFieldInfo {
     const wchar_t* name;
     ConfigType type;
     void* fieldPtr;
-};
-
-struct Configuration {
-    std::wstring version;
-    std::wstring isoPath;
-    std::wstring pcsx2Path;
-    std::wstring region;
-    bool autoUpdate;
-    bool embedWindow;
-    bool showConsole;
-    PatchFlags patches;  // Now this works!
 };
 
 extern Configuration config;

@@ -11,15 +11,18 @@ static std::wstring ConfigPath;
 static std::vector<ConfigFieldInfo> BuildConfigTable(Configuration& cfg)
 {
     return {
-        { ConfigKey::iso, L"ISO", ConfigType::String, &cfg.isoPath },
-        { ConfigKey::pcsx2, L"PCSX2", ConfigType::String, &cfg.pcsx2Path },
-        { ConfigKey::region, L"Region", ConfigType::String, &cfg.region },
-        { ConfigKey::autoUpdate, L"AutoUpdate", ConfigType::Bool, &cfg.autoUpdate },
-        { ConfigKey::embedWindow, L"EmbedWindow", ConfigType::Bool, &cfg.embedWindow },
-        { ConfigKey::bootToMultiplayer, L"BootToMultiplayer", ConfigType::Bool, &cfg.patches.bootToMultiplayer },
-        { ConfigKey::wideScreen, L"WideScreen", ConfigType::Bool, &cfg.patches.wideScreen },
-        {ConfigKey::progressiveScan, L"ProgressiveScan", ConfigType::Bool, &cfg.patches.progressiveScan },
-        { ConfigKey::showConsole,  L"ShowConsole", ConfigType::Bool, &cfg.showConsole },
+        {ConfigKey::iso, L"ISO", ConfigType::String, &cfg.isoPath},
+        {ConfigKey::pcsx2, L"PCSX2", ConfigType::String, &cfg.pcsx2Path},
+        {ConfigKey::region, L"Region", ConfigType::String, &cfg.region},
+        {ConfigKey::autoUpdate, L"AutoUpdate", ConfigType::Bool, &cfg.autoUpdate},
+        {ConfigKey::embedWindow, L"EmbedWindow", ConfigType::Bool, &cfg.embedWindow},
+        {ConfigKey::fullscreen, L"Fullscreen", ConfigType::Bool, &cfg.fullscreen},
+        
+        // patches
+        {ConfigKey::bootToMultiplayer, L"BootToMultiplayer", ConfigType::Bool, &cfg.patches.bootToMultiplayer},
+        {ConfigKey::widescreen, L"Widescreen", ConfigType::Bool, &cfg.patches.widescreen},
+        {ConfigKey::progressiveScan, L"ProgressiveScan", ConfigType::Bool, &cfg.patches.progressiveScan},
+        {ConfigKey::showConsole,  L"ShowConsole", ConfigType::Bool, &cfg.showConsole},
     };
 }
 

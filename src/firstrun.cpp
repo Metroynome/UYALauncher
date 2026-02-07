@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <string>
 #include "resource.h"
+#include "pcsx2.h"
 
 #pragma comment(lib, "comctl32.lib")
 
@@ -223,7 +224,8 @@ INT_PTR CALLBACK FirstRunDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 }
 
 // Show first run setup dialog
-bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
+bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode)
+{
     WNDCLASSEXW wc = {0};
     wc.cbSize = sizeof(WNDCLASSEXW);
     wc.lpfnWndProc = DefDlgProcW;
@@ -233,7 +235,7 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));
     wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));
     RegisterClassExW(&wc);
-    
+
     // Create controls with cleaner layout
     int window_w = 405;
     int window_h = 395;
@@ -253,14 +255,15 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
     // increate height if hotkey for config is pressed.
     if (hotkeyMode) window_h += 90;
 
-    // Create the dialog window - resizable
+    // Create the dialog window
     HWND hwnd = CreateWindowExW(
-        0,
+        WS_EX_TOPMOST,
         L"#32770",
-        L"UYA Launcher - Setup",
+        L"UYA Launcher - Settings",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
         CW_USEDEFAULT, CW_USEDEFAULT, window_w, window_h,
-        parent, NULL, hInstance, NULL
+        NULL, // originally was parent
+        NULL, hInstance, NULL
     );
     
     if (!hwnd) return false;
@@ -386,6 +389,6 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode) {
         if (!IsWindow(hwnd))
             break;
     }
-    
+
     return !settings.cancelled;
 }

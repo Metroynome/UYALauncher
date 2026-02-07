@@ -140,6 +140,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         UpdateWindow(mainWindow);
         ShowWindow(mainWindow, nCmdShow);
         
+        SetForegroundWindow(mainWindow);
+        SetFocus(mainWindow);
+        BringWindowToTop(mainWindow);
+
         if (consoleEnabled)
             std::cout << "Main wrapper window created." << std::endl;
     } else {

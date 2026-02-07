@@ -31,7 +31,7 @@ bool LaunchPCSX2(const std::wstring& isoPath, const std::wstring& pcsx2Path, boo
     if (config.fullscreen)
         arguments += L" -fullscreen";
 
-    // Build command line: "pcsx2.exe" "path/to/iso"
+    // Build command line: ("pcsx2.exe" [arguments] -- "path/to/iso")
     std::wstring cmdLine = L"\"" + pcsx2Path + L"\"" + arguments + L" -- \"" + isoPath + L"\"";
 
     STARTUPINFOW si = {0};

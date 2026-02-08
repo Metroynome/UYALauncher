@@ -382,6 +382,15 @@ bool UpdateMaps(const std::string& isoPath, const std::string& region, HWND pare
 
     if (!g_progressWindow) return false;
 
+    // Center the window
+    RECT rect;
+    GetWindowRect(g_progressWindow, &rect);
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+    int x = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
+    int y = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
+    SetWindowPos(g_progressWindow, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    
     // Create status text
     g_statusText = CreateWindowEx(
         0, "STATIC", "Initializing...",

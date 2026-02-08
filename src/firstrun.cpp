@@ -26,7 +26,7 @@
 #define IDC_UPDATE_BTN              1014
 #define IDC_FULLSCREEN_CHECK        1015
 
-static HWND g_firstRunDlg = NULL;
+HWND g_firstRunDlg = NULL;
 SettingsState settings;
 
 void ValidateLaunchButton(HWND hwnd) {

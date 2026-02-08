@@ -132,20 +132,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0;
 
     if (embedWindow) {
-        // Create visible window for embedding
-        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 960, 720, NULL, NULL, hInstance, NULL);
+        // Calculate centered position
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        int windowWidth = 960;
+        int windowHeight = 720;
+        int x = (screenWidth - windowWidth) / 2;
+        int y = (screenHeight - windowHeight) / 2;
+        
+        // Create visible window for embedding - but start hidden
+        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, x, y, windowWidth, windowHeight, NULL, NULL, hInstance, NULL);
         if (mainWindow == NULL)
             return 0;
         
         UpdateWindow(mainWindow);
-        ShowWindow(mainWindow, nCmdShow);
-        
-        SetForegroundWindow(mainWindow);
-        SetFocus(mainWindow);
-        BringWindowToTop(mainWindow);
+
+        // don't show window yet.
 
         if (consoleEnabled)
-            std::cout << "Main wrapper window created." << std::endl;
+            std::cout << "Main wrapper window created (hidden until embedding)." << std::endl;
     } else {
         // Create hidden message-only window for hotkeys
         mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, HWND_MESSAGE, NULL, hInstance, NULL);
@@ -179,7 +184,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Embed PCSX2 window if in embed mode
     if (embedWindow) {
+        // Hide the parent window before embedding
+        ShowWindow(mainWindow, SW_HIDE);
+        
         EmbedPCSX2Window(mainWindow, consoleEnabled);
+        
+        // Show the parent window after embedding is complete
+        ShowWindow(mainWindow, SW_SHOW);
     }
 
     // Start process monitor thread
@@ -230,6 +241,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_CLOSE: {
             if (consoleEnabled)
                 std::cout << "Window closing..." << std::endl;
+            
+            // Terminate PCSX2 before closing
+            TerminatePCSX2();
             
             DestroyWindow(hwnd);
             break;

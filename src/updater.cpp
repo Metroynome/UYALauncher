@@ -120,6 +120,15 @@ static bool DownloadUpdates(const std::wstring& downloadUrl, const std::wstring&
         return DownloadFile(downloadUrl, outPath);
     }
 
+    // Center the window
+    RECT rect;
+    GetWindowRect(g_updateProgressWindow, &rect);
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+    int x = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
+    int y = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
+    SetWindowPos(g_updateProgressWindow, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
     // Create status text
     g_updateStatusText = CreateWindowW(
         L"STATIC", L"Starting download...",

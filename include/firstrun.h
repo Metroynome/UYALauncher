@@ -8,6 +8,7 @@ struct SettingsState {
 };
 
 extern SettingsState settings;
+extern HWND g_firstRunDlg;  // Add this line
 
 // Show first-run setup dialog
 bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode);

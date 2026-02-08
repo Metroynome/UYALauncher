@@ -1,5 +1,6 @@
 #include "pcsx2.h"
 #include "config.h"
+#include "firstrun.h"
 #include <iostream>
 #include <thread>
 
@@ -200,6 +201,14 @@ void MonitorPCSX2Process(HWND parentWindow, bool showConsole)
                     std::cout << "PCSX2 process has exited." << std::endl;
                 
                 g_pcsx2Running = false;
+                
+                // Close settings dialog if it's open by posting WM_CLOSE
+                if (g_firstRunDlg && IsWindow(g_firstRunDlg))
+                {
+                    if (showConsole)
+                        std::cout << "Closing settings dialog..." << std::endl;
+                    PostMessage(g_firstRunDlg, WM_CLOSE, 0, 0);
+                }
                 
                 // Post quit message to main window to exit message loop
                 if (parentWindow)

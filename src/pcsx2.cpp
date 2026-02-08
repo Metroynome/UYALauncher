@@ -142,9 +142,18 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
         // Resize to fit wrapper window
         RECT rect;
         GetClientRect(g_pcsx2Window, &rect);
-        SetWindowPos(parentWindow, NULL, 0, 0, rect.right - rect.left, rect.bottom - rect.top, 
-                     SWP_NOZORDER | SWP_FRAMECHANGED);
+        int windowWidth = rect.right - rect.left;
+        int windowHeight = rect.bottom - rect.top;
         
+        // Center the parent window on screen
+        int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        int x = config.embedWindow ? ((screenWidth - windowWidth) / 2) : windowWidth;
+        int y = config.embedWindow ? ((screenHeight - windowHeight) / 2) : windowHeight;
+        
+        SetWindowPos(parentWindow, NULL, x, y, windowWidth, windowHeight, 
+                     SWP_NOZORDER | SWP_FRAMECHANGED);
+                
         UpdateWindow(g_pcsx2Window);
 
         // Show the window

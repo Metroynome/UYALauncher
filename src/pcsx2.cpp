@@ -1,6 +1,7 @@
 #include "pcsx2.h"
 #include "config.h"
 #include "firstrun.h"
+#include "memory.h"
 #include <iostream>
 #include <thread>
 
@@ -54,6 +55,15 @@ bool LaunchPCSX2(const std::wstring& isoPath, const std::wstring& pcsx2Path, boo
         std::cout << "PCSX2 launched successfully (PID: " << g_pcsx2ProcessInfo.dwProcessId << ")" << std::endl;
     
     g_pcsx2Running = true;
+    
+    // Initialize memory subsystem after a short delay to let PCSX2 initialize
+    std::thread([showConsole]() {
+        Sleep(3000); // Wait 3 seconds for PCSX2 to fully start
+        if (showConsole)
+            std::cout << "Initializing memory subsystem..." << std::endl;
+        Memory::Initialize(g_pcsx2ProcessInfo.hProcess);
+    }).detach();
+    
     return true;
 }
 
@@ -225,6 +235,9 @@ void MonitorPCSX2Process(HWND parentWindow, bool showConsole)
 
 void CleanupPCSX2()
 {
+    // Shutdown memory subsystem first
+    Memory::Shutdown();
+    
     if (g_pcsx2ProcessInfo.hProcess) {
         DWORD exitCode;
         if (GetExitCodeProcess(g_pcsx2ProcessInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE) {
@@ -242,6 +255,9 @@ void CleanupPCSX2()
 
 void TerminatePCSX2()
 {
+    // Shutdown memory subsystem first
+    Memory::Shutdown();
+    
     if (g_pcsx2ProcessInfo.hProcess) {
         TerminateProcess(g_pcsx2ProcessInfo.hProcess, 0);
         WaitForSingleObject(g_pcsx2ProcessInfo.hProcess, 2000);

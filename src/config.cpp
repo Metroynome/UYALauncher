@@ -45,8 +45,16 @@ Configuration LoadConfig()
         }
     }
     // Set defaults
-    if (cfg.region.empty()) 
-        cfg.region = L"NTSC";
+    // if (cfg.region.empty()) 
+    //     cfg.region = L"NTSC";
+    // if (LoadConfigValue(L"BootToMultiplayer").empty())
+    //     cfg.patches.bootToMultiplayer = true;
+    // if (LoadConfigValue(L"EmbedWindow").empty())
+    //     cfg.embedWindow = true;
+    // if (LoadConfigValue(L"AutoUpdate").empty())
+    //     cfg.autoUpdate = true;
+    // if (LoadConfigValue(L"Widescreen").empty())
+    //     cfg.patches.widescreen = true;
 
     // Load version
     std::wstring installedVersion = GetInstalledVersion();
@@ -100,10 +108,18 @@ const std::wstring& GetConfigPath()
     }
 
     std::wstring configDir = std::wstring(appDataPath) + L"\\UYALauncher";
-    CreateDirectoryW(configDir.c_str(), NULL);
 
     ConfigPath = configDir + L"\\config.ini";
     return ConfigPath;
+}
+
+static void EnsureConfigDirectory()
+{
+    wchar_t appDataPath[MAX_PATH];
+    if (SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath) == S_OK) {
+        std::wstring configDir = std::wstring(appDataPath) + L"\\UYALauncher";
+        CreateDirectoryW(configDir.c_str(), NULL);
+    }
 }
 
 static const wchar_t* ConfigKeyToString(ConfigKey key)
@@ -126,6 +142,7 @@ std::wstring LoadConfigValue(ConfigKey key)
 
 void SaveConfigValue(ConfigKey key, const std::wstring& value)
 {
+    EnsureConfigDirectory();
     SaveConfigValue(ConfigKeyToString(key), value);
 }
 
@@ -138,6 +155,7 @@ std::wstring LoadConfigValue(const std::wstring& key)
 
 void SaveConfigValue(const std::wstring& key, const std::wstring& value)
 {
+    EnsureConfigDirectory();
     WritePrivateProfileStringW(L"Settings", key.c_str(), value.c_str(), GetConfigPath().c_str());
 }
 
@@ -177,6 +195,8 @@ std::wstring GetInstalledVersion()
 
 void SetInstalledVersion(const std::wstring& version)
 {
+    EnsureConfigDirectory();
+
     wchar_t path[MAX_PATH];
     SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, path);
     std::wstring iniPath = std::wstring(path) + L"\\UYALauncher\\config.ini";

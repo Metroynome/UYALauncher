@@ -346,7 +346,19 @@ bool ShowFirstRunDialog(HINSTANCE hInstance, HWND parent, bool hotkeyMode)
     }
     
     // Load existing config and populate dialog
-    Configuration existingConfig = LoadConfig();
+    Configuration existingConfig;
+    if (!IsFirstRun()) {
+        existingConfig = LoadConfig();
+    } else {
+        // Set defaults for first run (without loading/creating config file)
+        existingConfig.region = L"NTSC";
+        existingConfig.autoUpdate = true;
+        existingConfig.embedWindow = true;
+        existingConfig.fullscreen = true;
+        existingConfig.patches.bootToMultiplayer = true;
+        existingConfig.patches.widescreen = true;
+        existingConfig.patches.progressiveScan = true;
+    }
 
     // Set ISO path if exists
     if (!existingConfig.isoPath.empty())

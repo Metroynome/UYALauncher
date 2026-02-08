@@ -14,6 +14,8 @@ const std::wstring NTSC_SP_File = L"SCUS-97353_45FE0CC4.pnach";
 const std::wstring NTSC_MP_File = L"SCUS-97353_49536F3F.pnach";
 const std::wstring PAL_SP_File  = L"SCES-52456_17125698.pnach";
 const std::wstring PAL_MP_File  = L"SCES-52456_EDE8B391.pnach";
+static bool forceEnable = true;
+static bool forceDisable = false;
 
 PatchFlags patch = { false, false, false };
 
@@ -22,23 +24,33 @@ static PnachPatch patches[] = {
     {
         &patch.bootToMultiplayer,
         singleplayer,
-        L"// Boot to Multiplayer",
+        L"// UYA Launcher: Boot to Multiplayer",
         L"patch=1,EE,20381590,extended,080e6010\n",
         L"patch=1,EE,20381568,extended,080ed2c2\n",
     },
     {
         &patch.widescreen,
         singleplayer,
-        L"// Enable Wide Screen",
+        L"// UYA Launcher: Enable Widescreen",
         L"patch=1,EE,001439fd,extended,00000001\n",
         L"patch=1,EE,001439fd,extended,00000001\n",
     },
     {
         &patch.progressiveScan,
         singleplayer,
-        L"// Enable Progressive Scan in Multiplayer",
+        L"// UYA Launcher: Enable Progressive Scan in Multiplayer",
         L"patch=1,EE,d01d5524,extended,00000101\npatch=1,EE,201d5520,extended,00000001\n",
         nullptr,
+    },
+    {
+        &forceEnable,
+        multiplayer,
+        L"// UYA Launcher: DNAS Skip",
+        nullptr,
+        L"patch=1,EE,D04D55E4,extended,24020006\n"
+        L"patch=1,EE,004D55D8,extended,00000000\n"
+        L"patch=1,EE,D04D55E4,extended,24020006\n"
+        L"patch=1,EE,004D55E4,extended,00000005\n",
     },
 };
 

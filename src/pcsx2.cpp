@@ -39,8 +39,7 @@ bool LaunchPCSX2(const std::wstring& isoPath, const std::wstring& pcsx2Path, boo
     si.cb = sizeof(si);
     
     // Launch PCSX2
-    if (!CreateProcessW(NULL, &cmdLine[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &g_pcsx2ProcessInfo))
-    {
+    if (!CreateProcessW(NULL, &cmdLine[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &g_pcsx2ProcessInfo)) {
         DWORD error = GetLastError();
         if (showConsole)
             std::cout << "Failed to launch PCSX2. Error: " << error << std::endl;
@@ -70,8 +69,7 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
     const int maxAttempts = 20;
     int attempts = 0;
     
-    while (attempts < maxAttempts && g_pcsx2Window == NULL)
-    {
+    while (attempts < maxAttempts && g_pcsx2Window == NULL) {
         // Search for PCSX2 window by process ID
         struct EnumData {
             DWORD processId;
@@ -83,17 +81,13 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
             DWORD windowProcessId;
             GetWindowThreadProcessId(hwnd, &windowProcessId);
             
-            if (windowProcessId == pData->processId)
-            {
-                if (IsWindowVisible(hwnd))
-                {
+            if (windowProcessId == pData->processId) {
+                if (IsWindowVisible(hwnd)) {
                     char className[256];
                     GetClassNameA(hwnd, className, sizeof(className));
                     
                     // Filter out console and IME windows
-                    if (strcmp(className, "ConsoleWindowClass") != 0 && 
-                        strcmp(className, "IME") != 0)
-                    {
+                    if (strcmp(className, "ConsoleWindowClass") != 0 && strcmp(className, "IME") != 0) {
                         pData->foundWindow = hwnd;
                         return FALSE; // Stop enumeration
                     }
@@ -104,8 +98,7 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
         
         g_pcsx2Window = data.foundWindow;
         
-        if (g_pcsx2Window != NULL)
-        {
+        if (g_pcsx2Window != NULL) {
             if (showConsole)
                 std::cout << "Found PCSX2 window!" << std::endl;
             break;
@@ -115,12 +108,9 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
         attempts++;
     }
 
-    if (g_pcsx2Window != NULL)
-    {
-        if (showConsole)
-        {
+    if (g_pcsx2Window != NULL) {
+        if (showConsole) {
             std::cout << "Embedding PCSX2 window..." << std::endl;
-            
             // Get current window info for debugging
             wchar_t windowTitle[256];
             char windowClass[256];
@@ -151,8 +141,7 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
         int x = config.embedWindow ? ((screenWidth - windowWidth) / 2) : windowWidth;
         int y = config.embedWindow ? ((screenHeight - windowHeight) / 2) : windowHeight;
         
-        SetWindowPos(parentWindow, NULL, x, y, windowWidth, windowHeight, 
-                     SWP_NOZORDER | SWP_FRAMECHANGED);
+        SetWindowPos(parentWindow, NULL, x, y, windowWidth, windowHeight, SWP_NOZORDER | SWP_FRAMECHANGED);
                 
         UpdateWindow(g_pcsx2Window);
 
@@ -163,9 +152,7 @@ bool EmbedPCSX2Window(HWND parentWindow, bool showConsole)
             std::cout << "PCSX2 window embedded successfully!" << std::endl;
         
         return true;
-    }
-    else
-    {
+    } else {
         if (showConsole)
             std::cout << "Could not find PCSX2 window after " << maxAttempts << " attempts." << std::endl;
         
@@ -201,11 +188,9 @@ void MonitorPCSX2Process(HWND parentWindow, bool showConsole)
 
     while (g_pcsx2Running)
     {
-        if (g_pcsx2ProcessInfo.hProcess)
-        {
+        if (g_pcsx2ProcessInfo.hProcess) {
             DWORD waitResult = WaitForSingleObject(g_pcsx2ProcessInfo.hProcess, 1000);
-            if (waitResult == WAIT_OBJECT_0)
-            {
+            if (waitResult == WAIT_OBJECT_0) {
                 if (showConsole)
                     std::cout << "PCSX2 process has exited." << std::endl;
                 
@@ -240,11 +225,9 @@ void MonitorPCSX2Process(HWND parentWindow, bool showConsole)
 
 void CleanupPCSX2()
 {
-    if (g_pcsx2ProcessInfo.hProcess)
-    {
+    if (g_pcsx2ProcessInfo.hProcess) {
         DWORD exitCode;
-        if (GetExitCodeProcess(g_pcsx2ProcessInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE)
-        {
+        if (GetExitCodeProcess(g_pcsx2ProcessInfo.hProcess, &exitCode) && exitCode == STILL_ACTIVE) {
             TerminateProcess(g_pcsx2ProcessInfo.hProcess, 0);
             WaitForSingleObject(g_pcsx2ProcessInfo.hProcess, 2000);
         }
@@ -259,8 +242,7 @@ void CleanupPCSX2()
 
 void TerminatePCSX2()
 {
-    if (g_pcsx2ProcessInfo.hProcess)
-    {
+    if (g_pcsx2ProcessInfo.hProcess) {
         TerminateProcess(g_pcsx2ProcessInfo.hProcess, 0);
         WaitForSingleObject(g_pcsx2ProcessInfo.hProcess, 2000);
         CloseHandle(g_pcsx2ProcessInfo.hProcess);

@@ -17,6 +17,7 @@
 #define HOTKEY_OPEN_FIRSTRUN  2
 
 // Global variables
+const wchar_t* WINDOW_TITLE = L"UYA Launcher";
 HWND mainWindow = NULL;
 bool consoleEnabled = false;
 static bool justUpdated = false;
@@ -127,7 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));
     wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAINICON));        
-    
+
     if (!RegisterClassExW(&wc))
         return 0;
 
@@ -141,7 +142,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         int y = (screenHeight - windowHeight) / 2;
         
         // Create visible window for embedding - but start hidden
-        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, x, y, windowWidth, windowHeight, NULL, NULL, hInstance, NULL);
+        mainWindow = CreateWindowExW(0, L"UYALauncherClass", WINDOW_TITLE, WS_OVERLAPPEDWINDOW, x, y, windowWidth, windowHeight, NULL, NULL, hInstance, NULL);
         if (mainWindow == NULL)
             return 0;
         
@@ -153,7 +154,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Main wrapper window created (hidden until embedding)." << std::endl;
     } else {
         // Create hidden message-only window for hotkeys
-        mainWindow = CreateWindowExW(0, L"UYALauncherClass", L"UYA Launcher", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, HWND_MESSAGE, NULL, hInstance, NULL);
+        mainWindow = CreateWindowExW(0, L"UYALauncherClass", WINDOW_TITLE, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, HWND_MESSAGE, NULL, hInstance, NULL);
         if (mainWindow == NULL)
             return 0;
         
@@ -228,8 +229,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    switch (msg)
-    {
+    switch (msg) {
         case WM_SIZE: {
             if (g_pcsx2Window) {
                 RECT rect;

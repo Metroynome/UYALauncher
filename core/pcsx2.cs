@@ -42,6 +42,18 @@ public static class PCSX2Manager
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
 
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
     private const int GWL_STYLE = -16;
@@ -196,6 +208,29 @@ public static class PCSX2Manager
             if (showConsole)
                 Console.WriteLine("Embedding PCSX2 window...");
 
+            // Get PCSX2 window size
+            if (GetWindowRect(_pcsx2Window, out RECT pcsx2Rect))
+            {
+                int pcsx2Width = pcsx2Rect.Right - pcsx2Rect.Left;
+                int pcsx2Height = pcsx2Rect.Bottom - pcsx2Rect.Top;
+                
+                if (showConsole)
+                    Console.WriteLine($"PCSX2 window size: {pcsx2Width}x{pcsx2Height}");
+
+                // Resize parent window to match PCSX2 size
+                parentWindow.Width = pcsx2Width;
+                parentWindow.Height = pcsx2Height;
+                
+                if (showConsole)
+                    Console.WriteLine($"Resized parent window to match PCSX2: {pcsx2Width}x{pcsx2Height}");
+            }
+
+            // Hide PCSX2 window before embedding
+            const int SW_HIDE = 0;
+            ShowWindow(_pcsx2Window, SW_HIDE);
+            if (showConsole)
+                Console.WriteLine("PCSX2 window hidden for embedding");
+
             // Get parent window handle
             var parentHandle = new WindowInteropHelper(parentWindow).Handle;
             if (showConsole)
@@ -218,20 +253,24 @@ public static class PCSX2Manager
             if (showConsole)
                 Console.WriteLine($"SetParent result: {result}");
 
-            // Resize and position
+            // Resize PCSX2 to fill parent window (now that parent is sized correctly)
             var width = (int)parentWindow.ActualWidth;
             var height = (int)parentWindow.ActualHeight;
             if (showConsole)
-                Console.WriteLine($"Resizing PCSX2 window to {width}x{height}");
+                Console.WriteLine($"Sizing embedded PCSX2 to fill parent: {width}x{height}");
 
             SetWindowPos(_pcsx2Window, IntPtr.Zero, 0, 0, 
                         width, height,
                         SWP_NOZORDER | SWP_FRAMECHANGED);
 
+            if (showConsole)
+                Console.WriteLine("PCSX2 window sized, now showing...");
+
+            // Show PCSX2 window (now embedded and properly sized)
             ShowWindow(_pcsx2Window, SW_SHOW);
 
             if (showConsole)
-                Console.WriteLine("PCSX2 window embedded successfully!");
+                Console.WriteLine("PCSX2 window embedded and shown successfully!");
 
             return true;
         }

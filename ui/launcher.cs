@@ -35,6 +35,13 @@ public class LauncherWindow : Window
         WindowStyle = WindowStyle.SingleBorderWindow;
         ResizeMode = ResizeMode.CanResize;
         
+        // Start minimized if embedding is enabled (will restore after embedding completes)
+        if (_config.EmbedWindow)
+        {
+            WindowState = WindowState.Minimized;
+            Console.WriteLine("Window initially minimized for embedding");
+        }
+        
         // Apply theme (high contrast or dark)
         ThemeHelper.ApplyTheme(this);
 
@@ -225,13 +232,8 @@ public class LauncherWindow : Window
         // Embed PCSX2 window if configured
         if (_config.EmbedWindow)
         {
-            Console.WriteLine("Embed mode enabled");
-            Console.WriteLine("Waiting 2 seconds before attempting to embed...");
+            Console.WriteLine("Embed mode enabled - waiting for PCSX2 window to appear...");
             
-            // Wait a bit for PCSX2 to fully start
-            await Task.Delay(2000);
-            
-            Console.WriteLine("Attempting to embed PCSX2 window...");
             var embedded = await PCSX2Manager.EmbedWindow(this, true);
             Console.WriteLine($"Embed result: {embedded}");
 
@@ -243,6 +245,11 @@ public class LauncherWindow : Window
             {
                 Console.WriteLine("Embedding successful!");
             }
+            
+            // Restore window now that embedding is complete
+            WindowState = WindowState.Normal;
+            Activate();
+            Console.WriteLine("Launcher window restored after embedding");
         }
         else
         {

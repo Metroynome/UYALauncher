@@ -1,6 +1,9 @@
 # Build directories
 build/
 cmake-build-*/
+bin/
+obj/
+QUICKSTART.md
 
 # Executables
 *.exe
@@ -32,3 +35,6 @@ emulator/
 
 # User configuration
 config.ini
+
+
+*.csproj

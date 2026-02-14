@@ -3,10 +3,8 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Interop;
 
 namespace UYALauncher;
 
@@ -14,12 +12,6 @@ public partial class MainWindow : Window
 {
     private readonly bool _isHotkeyMode;
     private bool _cancelled = false;
-
-    // Windows API for dark title bar
-    [DllImport("dwmapi.dll", PreserveSig = true)]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
     // Default constructor for XAML
     public MainWindow() : this(false)
@@ -35,12 +27,8 @@ public partial class MainWindow : Window
         {
             InitializeComponent();
             
-            // Dark theme background
-            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(32, 32, 32));
-            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
-            
-            // Enable dark title bar after window is loaded
-            Loaded += (s, e) => SetDarkTitleBar();
+            // Apply theme (high contrast or dark)
+            ThemeHelper.ApplyTheme(this);
         }
         catch (Exception ex)
         {
@@ -71,24 +59,6 @@ public partial class MainWindow : Window
         // Subscribe to text changed events
         IsoPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
         Pcsx2PathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
-    }
-
-    private void SetDarkTitleBar()
-    {
-        try
-        {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            if (hwnd != IntPtr.Zero)
-            {
-                int value = 1; // 1 = dark mode, 0 = light mode
-                DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
-                Console.WriteLine("Dark title bar enabled");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to set dark title bar: {ex.Message}");
-        }
     }
 
     private void LoadConfiguration()

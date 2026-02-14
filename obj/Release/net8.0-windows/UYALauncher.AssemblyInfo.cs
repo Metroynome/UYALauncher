@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UYALauncher")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("3.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("3.0.0+0094b7c2345891f2da1ea9a2eeb4886d1117024e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("3.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("UYALauncher")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UYALauncher")]
 [assembly: System.Reflection.AssemblyVersionAttribute("3.0.0.0")]

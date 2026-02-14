@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Shapes;
+using IOPath = System.IO.Path;
 
 namespace UYALauncher;
 
@@ -27,11 +27,11 @@ public static class MapUpdater
     {
         try
         {
-            var isoDir = Path.GetDirectoryName(isoPath);
+            var isoDir = IOPath.GetDirectoryName(isoPath);
             if (string.IsNullOrEmpty(isoDir))
                 return;
 
-            var mapsDir = Path.Combine(isoDir, "uya");
+            var mapsDir = IOPath.Combine(isoDir, "uya");
             Directory.CreateDirectory(mapsDir);
 
             // Determine which regions to update
@@ -136,7 +136,7 @@ public static class MapUpdater
     {
         return maps.Where(map =>
         {
-            var versionPath = Path.Combine(mapsDir, $"{map.Filename}.version");
+            var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
             var localVersion = GetLocalMapVersion(versionPath);
             return localVersion < map.Version;
         }).ToList();
@@ -173,7 +173,7 @@ public static class MapUpdater
             try
             {
                 var url = $"{BaseUrl}/uya/{filename}{ext}";
-                var outputPath = Path.Combine(mapsDir, $"{filename}{ext}");
+                var outputPath = IOPath.Combine(mapsDir, $"{filename}{ext}");
                 var data = await client.GetByteArrayAsync(url);
                 await File.WriteAllBytesAsync(outputPath, data);
             }
@@ -187,110 +187,15 @@ public static class MapUpdater
         try
         {
             var versionUrl = $"{BaseUrl}/uya/{map.Filename}.version";
-            var versionPath = Path.Combine(mapsDir, $"{map.Filename}.version");
+            var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
             var versionData = await client.GetByteArrayAsync(versionUrl);
             await File.WriteAllBytesAsync(versionPath, versionData);
         }
         catch
         {
             // Create version file if download fails
-            var versionPath = Path.Combine(mapsDir, $"{map.Filename}.version");
+            var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
             await File.WriteAllBytesAsync(versionPath, BitConverter.GetBytes(map.Version));
         }
-    }
-}
-
-public class MapUpdateProgressWindow : Window
-{
-    private readonly ProgressBar _progressBar;
-    private readonly TextBlock _statusText;
-
-    // Windows API for dark title bar
-    [DllImport("dwmapi.dll", PreserveSig = true)]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-
-    public MapUpdateProgressWindow()
-    {
-        Title = "Updating Custom Maps";
-        Width = 500;
-        Height = 180;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        ResizeMode = ResizeMode.NoResize;
-        WindowStyle = WindowStyle.SingleBorderWindow;
-        
-        // Dark theme background
-        Background = new SolidColorBrush(Color.FromRgb(32, 32, 32));
-        Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-
-        // Enable dark title bar
-        Loaded += (s, e) => SetDarkTitleBar();
-
-        var grid = new Grid();
-        grid.Margin = new Thickness(20);
-
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(20) });
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
-
-        _statusText = new TextBlock
-        {
-            Text = "Initializing...",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 15),
-            Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
-            FontSize = 14
-        };
-        Grid.SetRow(_statusText, 0);
-        grid.Children.Add(_statusText);
-
-        _progressBar = new ProgressBar
-        {
-            Height = 24,
-            Minimum = 0,
-            Maximum = 100,
-            Value = 0,
-            Foreground = new SolidColorBrush(Color.FromRgb(0, 120, 212)), // Accent blue
-            Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
-            BorderThickness = new Thickness(1)
-        };
-        Grid.SetRow(_progressBar, 2);
-        grid.Children.Add(_progressBar);
-
-        Content = grid;
-    }
-
-    private void SetDarkTitleBar()
-    {
-        try
-        {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            if (hwnd != IntPtr.Zero)
-            {
-                int value = 1;
-                DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
-            }
-        }
-        catch
-        {
-            // Ignore errors
-        }
-    }
-
-    public void UpdateStatus(string status)
-    {
-        _statusText.Text = status;
-    }
-
-    public void SetTotalMaps(int total)
-    {
-        _progressBar.Maximum = total;
-    }
-
-    public void UpdateProgress(int current, int total)
-    {
-        _progressBar.Value = current;
     }
 }

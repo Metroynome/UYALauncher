@@ -12,6 +12,7 @@ public class LauncherWindow : Window
     private readonly ConfigurationData _config;
     private const int HOTKEY_F11 = 9001;
     private const int HOTKEY_CTRL_F11 = 9002;
+    private static MainWindow? _openSettingsWindow = null;
 
     // Win32 API for global hotkeys
     [DllImport("user32.dll", SetLastError = true)]
@@ -20,14 +21,9 @@ public class LauncherWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-    // Windows API for dark title bar
-    [DllImport("dwmapi.dll", PreserveSig = true)]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
     private const uint MOD_NONE = 0x0000;
     private const uint MOD_CONTROL = 0x0002;
     private const uint VK_F11 = 0x7A;
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
     public LauncherWindow(ConfigurationData config)
     {
@@ -39,9 +35,8 @@ public class LauncherWindow : Window
         WindowStyle = WindowStyle.SingleBorderWindow;
         ResizeMode = ResizeMode.CanResize;
         
-        // Dark theme background
-        Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(32, 32, 32));
-        Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
+        // Apply theme (high contrast or dark)
+        ThemeHelper.ApplyTheme(this);
 
         // Handle resize to resize embedded window
         SizeChanged += (s, e) =>
@@ -60,29 +55,21 @@ public class LauncherWindow : Window
         var helper = new WindowInteropHelper(this);
         var handle = helper.Handle;
 
-        Console.WriteLine($"Window handle for hotkeys: {handle}");
+        Console.WriteLine($"=== OnSourceInitialized ===");
+        Console.WriteLine($"Window handle: {handle}");
+        Console.WriteLine($"Window visible: {IsVisible}");
 
         if (handle != IntPtr.Zero)
         {
-            // Enable dark title bar
-            try
-            {
-                int value = 1;
-                DwmSetWindowAttribute(handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
-                Console.WriteLine("Dark title bar enabled");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to set dark title bar: {ex.Message}");
-            }
-
             // Register F11 for map updates
             bool f11Success = RegisterHotKey(handle, HOTKEY_F11, MOD_NONE, VK_F11);
             Console.WriteLine($"Registering F11 hotkey (ID: {HOTKEY_F11}): {f11Success}");
             if (!f11Success)
             {
                 int error = Marshal.GetLastWin32Error();
-                Console.WriteLine($"F11 registration failed with error: {error}");
+                Console.WriteLine($"F11 registration failed with error code: {error}");
+                if (error == 1409)
+                    Console.WriteLine("Error 1409 = Hot key is already registered");
             }
 
             // Register Ctrl+F11 for settings
@@ -91,7 +78,9 @@ public class LauncherWindow : Window
             if (!ctrlF11Success)
             {
                 int error = Marshal.GetLastWin32Error();
-                Console.WriteLine($"Ctrl+F11 registration failed with error: {error}");
+                Console.WriteLine($"Ctrl+F11 registration failed with error code: {error}");
+                if (error == 1409)
+                    Console.WriteLine("Error 1409 = Hot key is already registered");
             }
 
             // Add hook to process Windows messages
@@ -99,7 +88,8 @@ public class LauncherWindow : Window
             if (source != null)
             {
                 source.AddHook(WndProc);
-                Console.WriteLine("Message hook added successfully");
+                Console.WriteLine("WndProc message hook added successfully");
+                Console.WriteLine("Hotkeys should now be active - try pressing F11 or Ctrl+F11");
             }
             else
             {
@@ -162,8 +152,36 @@ public class LauncherWindow : Window
 
     private void OpenSettings()
     {
+        // If settings window is already open, just focus it
+        if (_openSettingsWindow != null)
+        {
+            Console.WriteLine("Settings window already open - bringing to front");
+            
+            // Bring to front and focus
+            _openSettingsWindow.Activate();
+            _openSettingsWindow.Focus();
+            
+            // If minimized, restore it
+            if (_openSettingsWindow.WindowState == WindowState.Minimized)
+            {
+                _openSettingsWindow.WindowState = WindowState.Normal;
+            }
+            
+            return;
+        }
+
+        Console.WriteLine("Opening new settings window");
         var settingsWindow = new MainWindow(hotkeyMode: true);
-        settingsWindow.ShowDialog();
+        _openSettingsWindow = settingsWindow;
+        
+        // Clear reference when window closes
+        settingsWindow.Closed += (s, e) =>
+        {
+            Console.WriteLine("Settings window closed");
+            _openSettingsWindow = null;
+        };
+        
+        settingsWindow.Show();
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)

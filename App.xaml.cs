@@ -4,23 +4,21 @@ using System.Windows;
 
 namespace UYALauncher;
 
-public partial class App : Application
-{
+public partial class App : Application {
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AllocConsole();
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool FreeConsole();
 
-    protected override void OnStartup(StartupEventArgs e)
-    {
+    protected override void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
 
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
         // Handle self-update command line argument
-        if (e.Args.Length > 0 && e.Args[0] == "--self-update")
-        {
-            if (e.Args.Length >= 2)
-            {
+        if (e.Args.Length > 0 && e.Args[0] == "--self-update") {
+            if (e.Args.Length >= 2) {
                 var args = e.Args[1].Split('|');
                 var newExePath = args[0];
                 var remoteVersion = args.Length > 1 ? args[1] : "0.0.0";
@@ -35,13 +33,11 @@ public partial class App : Application
         bool configIncomplete = !firstRun && !Configuration.IsConfigComplete();
 
         // Show setup dialog if needed
-        if (firstRun || configIncomplete)
-        {
+        if (firstRun || configIncomplete) {
             var setupWindow = new MainWindow(hotkeyMode: false);
             var result = setupWindow.ShowDialog();
 
-            if (setupWindow.WasCancelled || result != true)
-            {
+            if (setupWindow.WasCancelled || result != true) {
                 Shutdown();
                 return;
             }
@@ -51,8 +47,7 @@ public partial class App : Application
         var config = Configuration.Load();
 
         // Setup console ONLY if enabled in config
-        if (config.ShowConsole)
-        {
+        if (config.ShowConsole) {
             AllocConsole();
             Console.WriteLine("=== UYA Launcher Starting ===");
             Console.WriteLine($"Version: 3.0.0");
@@ -60,8 +55,7 @@ public partial class App : Application
         }
 
         // Check for updates if auto-update is enabled
-        if (config.AutoUpdate)
-        {
+        if (config.AutoUpdate) {
             _ = Updater.CheckAndUpdateAsync(true);
         }
 
@@ -72,31 +66,22 @@ public partial class App : Application
         var launcherWindow = new LauncherWindow(config);
         MainWindow = launcherWindow;
 
-        if (config.EmbedWindow)
-        {
-            // Show window for embedding
+        if (config.EmbedWindow) {
             launcherWindow.Show();
-        }
-        else
-        {
-            // Don't show window if not embedding - PCSX2 will run separately
-            // But still create it for the message pump and hotkeys
+        } else {
+            // launcherWindow.WindowState = WindowState.Minimized;
             launcherWindow.Visibility = Visibility.Hidden;
-            launcherWindow.Show(); // Still need to show it (hidden) for events to work
+            launcherWindow.Show();
         }
     }
 
-    protected override void OnExit(ExitEventArgs e)
-    {
+    protected override void OnExit(ExitEventArgs e) {
         base.OnExit(e);
         
         // Cleanup console if it was allocated
-        try
-        {
+        try {
             FreeConsole();
-        }
-        catch
-        {
+        } catch {
             // Ignore errors during cleanup
         }
     }

@@ -17,7 +17,7 @@
 
         <!-- Header -->
         <TextBlock Grid.Row="0" 
-                   Text="UYA Launcher Configuration" 
+                   Text="UYA Launcher Settings" 
                    FontSize="24" 
                    FontWeight="Bold"
                    Margin="0,0,0,20"/>
@@ -116,17 +116,11 @@
                                   IsChecked="True"
                                   Margin="0,0,0,15"/>
 
-                        <CheckBox x:Name="ProgressiveScanCheckBox" 
-                                  Content="Enable Progressive Scan" 
-                                  Style="{StaticResource ModernCheckBox}"
-                                  IsChecked="True"
-                                  Margin="0,0,0,15"/>
-
-                        <TextBlock Text="Note: These patches will be applied to PCSX2's patch files."
+                        <!-- <TextBlock Text="Note: These patches will be applied to PCSX2's patch files."
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"
-                                   Margin="0,20,0,0"/>
+                                   Margin="0,20,0,0"/> -->
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -149,11 +143,11 @@
                                   Style="{StaticResource ModernCheckBox}"
                                   Margin="0,0,0,15"/>
 
-                        <TextBlock Text="Debug console is useful for troubleshooting issues."
+                        <!-- <TextBlock Text="Debug console is useful for troubleshooting issues."
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"
-                                   Margin="0,20,0,0"/>
+                                   Margin="0,20,0,0"/> -->
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

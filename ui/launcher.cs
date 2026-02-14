@@ -7,8 +7,7 @@ using System.Windows.Interop;
 
 namespace UYALauncher;
 
-public class LauncherWindow : Window
-{
+public class LauncherWindow : Window {
     private readonly ConfigurationData _config;
     private const int HOTKEY_F11 = 9001;
     private const int HOTKEY_CTRL_F11 = 9002;
@@ -25,8 +24,7 @@ public class LauncherWindow : Window
     private const uint MOD_CONTROL = 0x0002;
     private const uint VK_F11 = 0x7A;
 
-    public LauncherWindow(ConfigurationData config)
-    {
+    public LauncherWindow(ConfigurationData config) {
         _config = config;
         Title = "UYA Launcher";
         Width = 960;
@@ -36,8 +34,7 @@ public class LauncherWindow : Window
         ResizeMode = ResizeMode.CanResize;
         
         // Start minimized if embedding is enabled (will restore after embedding completes)
-        if (_config.EmbedWindow)
-        {
+        if (_config.EmbedWindow) {
             WindowState = WindowState.Minimized;
             Console.WriteLine("Window initially minimized for embedding");
         }
@@ -46,8 +43,7 @@ public class LauncherWindow : Window
         ThemeHelper.ApplyTheme(this);
 
         // Handle resize to resize embedded window
-        SizeChanged += (s, e) =>
-        {
+        SizeChanged += (s, e) => {
             PCSX2Manager.ResizeEmbeddedWindow(ActualWidth, ActualHeight);
         };
 
@@ -56,8 +52,7 @@ public class LauncherWindow : Window
         SourceInitialized += OnSourceInitialized;
     }
 
-    private void OnSourceInitialized(object? sender, EventArgs e)
-    {
+    private void OnSourceInitialized(object? sender, EventArgs e) {
         // Register global hotkeys after window handle is created
         var helper = new WindowInteropHelper(this);
         var handle = helper.Handle;
@@ -66,13 +61,11 @@ public class LauncherWindow : Window
         Console.WriteLine($"Window handle: {handle}");
         Console.WriteLine($"Window visible: {IsVisible}");
 
-        if (handle != IntPtr.Zero)
-        {
+        if (handle != IntPtr.Zero) {
             // Register F11 for map updates
             bool f11Success = RegisterHotKey(handle, HOTKEY_F11, MOD_NONE, VK_F11);
             Console.WriteLine($"Registering F11 hotkey (ID: {HOTKEY_F11}): {f11Success}");
-            if (!f11Success)
-            {
+            if (!f11Success) {
                 int error = Marshal.GetLastWin32Error();
                 Console.WriteLine($"F11 registration failed with error code: {error}");
                 if (error == 1409)
@@ -82,8 +75,7 @@ public class LauncherWindow : Window
             // Register Ctrl+F11 for settings
             bool ctrlF11Success = RegisterHotKey(handle, HOTKEY_CTRL_F11, MOD_CONTROL, VK_F11);
             Console.WriteLine($"Registering Ctrl+F11 hotkey (ID: {HOTKEY_CTRL_F11}): {ctrlF11Success}");
-            if (!ctrlF11Success)
-            {
+            if (!ctrlF11Success) {
                 int error = Marshal.GetLastWin32Error();
                 Console.WriteLine($"Ctrl+F11 registration failed with error code: {error}");
                 if (error == 1409)
@@ -92,34 +84,26 @@ public class LauncherWindow : Window
 
             // Add hook to process Windows messages
             HwndSource source = HwndSource.FromHwnd(handle);
-            if (source != null)
-            {
+            if (source != null) {
                 source.AddHook(WndProc);
                 Console.WriteLine("WndProc message hook added successfully");
                 Console.WriteLine("Hotkeys should now be active - try pressing F11 or Ctrl+F11");
-            }
-            else
-            {
+            } else {
                 Console.WriteLine("ERROR: Could not get HwndSource!");
             }
-        }
-        else
-        {
+        } else {
             Console.WriteLine("ERROR: Window handle is zero!");
         }
     }
 
-    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) {
         const int WM_HOTKEY = 0x0312;
 
-        if (msg == WM_HOTKEY)
-        {
+        if (msg == WM_HOTKEY) {
             int hotkeyId = wParam.ToInt32();
             Console.WriteLine($"WM_HOTKEY message received! Hotkey ID: {hotkeyId}");
 
-            switch (hotkeyId)
-            {
+            switch (hotkeyId) {
                 case HOTKEY_F11:
                     Console.WriteLine("F11 hotkey triggered: Updating maps...");
                     _ = UpdateMapsAsync();
@@ -141,27 +125,20 @@ public class LauncherWindow : Window
         return IntPtr.Zero;
     }
 
-    private async Task UpdateMapsAsync()
-    {
-        if (!string.IsNullOrEmpty(_config.IsoPath))
-        {
-            try
-            {
+    private async Task UpdateMapsAsync() {
+        if (!string.IsNullOrEmpty(_config.IsoPath)) {
+            try {
                 await MapUpdater.UpdateMapsAsync(_config.IsoPath, _config.Region);
                 Console.WriteLine("Map update completed via hotkey");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Console.WriteLine($"Map update error: {ex.Message}");
             }
         }
     }
 
-    private void OpenSettings()
-    {
+    private void OpenSettings() {
         // If settings window is already open, just focus it
-        if (_openSettingsWindow != null)
-        {
+        if (_openSettingsWindow != null) {
             Console.WriteLine("Settings window already open - bringing to front");
             
             // Bring to front and focus
@@ -169,8 +146,7 @@ public class LauncherWindow : Window
             _openSettingsWindow.Focus();
             
             // If minimized, restore it
-            if (_openSettingsWindow.WindowState == WindowState.Minimized)
-            {
+            if (_openSettingsWindow.WindowState == WindowState.Minimized) {
                 _openSettingsWindow.WindowState = WindowState.Normal;
             }
             
@@ -182,8 +158,7 @@ public class LauncherWindow : Window
         _openSettingsWindow = settingsWindow;
         
         // Clear reference when window closes
-        settingsWindow.Closed += (s, e) =>
-        {
+        settingsWindow.Closed += (s, e) => {
             Console.WriteLine("Settings window closed");
             _openSettingsWindow = null;
         };
@@ -191,8 +166,7 @@ public class LauncherWindow : Window
         settingsWindow.Show();
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
-    {
+    private async void OnLoaded(object sender, RoutedEventArgs e) {
         Console.WriteLine("=== LauncherWindow.OnLoaded ===");
         Console.WriteLine($"ISO Path: '{_config.IsoPath}'");
         Console.WriteLine($"PCSX2 Path: '{_config.Pcsx2Path}'");
@@ -201,28 +175,21 @@ public class LauncherWindow : Window
         Console.WriteLine($"ShowConsole: {_config.ShowConsole}");
         
         // Update maps first if ISO is configured
-        if (!string.IsNullOrEmpty(_config.IsoPath))
-        {
+        if (!string.IsNullOrEmpty(_config.IsoPath)) {
             Console.WriteLine("Checking for custom map updates...");
-            try
-            {
+            try {
                 await MapUpdater.UpdateMapsAsync(_config.IsoPath, _config.Region);
                 Console.WriteLine("Map update completed");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Console.WriteLine($"Map update error: {ex.Message}");
             }
-        }
-        else
-        {
+        } else {
             Console.WriteLine("No ISO path configured, skipping map updates");
         }
 
         // Launch PCSX2
         Console.WriteLine("Attempting to launch PCSX2...");
-        if (!PCSX2Manager.Launch(_config))
-        {
+        if (!PCSX2Manager.Launch(_config)) {
             Console.WriteLine("PCSX2 launch failed!");
             Close();
             return;
@@ -230,19 +197,15 @@ public class LauncherWindow : Window
         Console.WriteLine("PCSX2 launch succeeded!");
 
         // Embed PCSX2 window if configured
-        if (_config.EmbedWindow)
-        {
+        if (_config.EmbedWindow) {
             Console.WriteLine("Embed mode enabled - waiting for PCSX2 window to appear...");
             
             var embedded = await PCSX2Manager.EmbedWindow(this, true);
             Console.WriteLine($"Embed result: {embedded}");
 
-            if (!embedded)
-            {
+            if (!embedded) {
                 Console.WriteLine("WARNING: Embedding failed, but PCSX2 is running in separate window");
-            }
-            else
-            {
+            } else {
                 Console.WriteLine("Embedding successful!");
             }
             
@@ -250,9 +213,7 @@ public class LauncherWindow : Window
             WindowState = WindowState.Normal;
             Activate();
             Console.WriteLine("Launcher window restored after embedding");
-        }
-        else
-        {
+        } else {
             Console.WriteLine("Embed mode disabled, PCSX2 will run in separate window");
         }
 
@@ -262,20 +223,17 @@ public class LauncherWindow : Window
         Console.WriteLine("LauncherWindow fully loaded and ready");
     }
 
-    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
-    {
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) {
         Console.WriteLine("Launcher window closing...");
 
         // Unregister hotkeys
         var helper = new WindowInteropHelper(this);
         var handle = helper.Handle;
-        if (handle != IntPtr.Zero)
-        {
+        if (handle != IntPtr.Zero) {
             UnregisterHotKey(handle, HOTKEY_F11);
             UnregisterHotKey(handle, HOTKEY_CTRL_F11);
             Console.WriteLine("Hotkeys unregistered");
         }
-
         PCSX2Manager.Terminate();
     }
 }

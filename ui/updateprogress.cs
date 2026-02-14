@@ -12,8 +12,7 @@ public class UpdateProgressWindow : Window
     private readonly Rectangle _progressIndicator;
     private readonly Border _progressContainer;
 
-    public UpdateProgressWindow()
-    {
+    public UpdateProgressWindow() {
         Title = "Downloading Update";
         Width = 450;
         Height = 180;
@@ -31,8 +30,7 @@ public class UpdateProgressWindow : Window
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(20) });
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
 
-        _statusText = new TextBlock
-        {
+        _statusText = new TextBlock {
             Text = "Preparing download...",
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 15),
@@ -45,8 +43,7 @@ public class UpdateProgressWindow : Window
         grid.Children.Add(_statusText);
 
         // Create custom progress bar using Rectangle
-        _progressContainer = new Border
-        {
+        _progressContainer = new Border {
             Height = 24,
             Background = SystemParameters.HighContrast 
                 ? SystemColors.ControlBrush 
@@ -58,8 +55,7 @@ public class UpdateProgressWindow : Window
             CornerRadius = new CornerRadius(2)
         };
 
-        _progressIndicator = new Rectangle
-        {
+        _progressIndicator = new Rectangle {
             Fill = SystemParameters.HighContrast 
                 ? SystemColors.HighlightBrush 
                 : new SolidColorBrush(Color.FromRgb(0, 120, 212)),
@@ -74,18 +70,15 @@ public class UpdateProgressWindow : Window
         Content = grid;
     }
 
-    public void UpdateProgress(int percent)
-    {
-        Dispatcher.Invoke(() =>
-        {
+    public void UpdateProgress(int percent) {
+        Dispatcher.Invoke(() => {
             _statusText.Text = $"Downloading update... {percent}%";
             
             // Update rectangle width based on percentage
             var containerWidth = _progressContainer.ActualWidth - 2; // Subtract border
             _progressIndicator.Width = (containerWidth * percent) / 100.0;
 
-            if (percent >= 100)
-            {
+            if (percent >= 100) {
                 _statusText.Text = "Download complete!";
             }
         });

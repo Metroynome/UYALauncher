@@ -6,15 +6,13 @@ using System.Windows.Shapes;
 
 namespace UYALauncher;
 
-public class MapUpdateProgressWindow : Window
-{
+public class MapUpdateProgressWindow : Window {
     private readonly TextBlock _statusText;
     private readonly Rectangle _progressIndicator;
     private readonly Border _progressContainer;
     private double _maxValue = 100;
 
-    public MapUpdateProgressWindow()
-    {
+    public MapUpdateProgressWindow() {
         Title = "Updating Custom Maps";
         Width = 500;
         Height = 180;
@@ -32,8 +30,7 @@ public class MapUpdateProgressWindow : Window
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(20) });
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });
 
-        _statusText = new TextBlock
-        {
+        _statusText = new TextBlock {
             Text = "Initializing...",
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 15),
@@ -46,8 +43,7 @@ public class MapUpdateProgressWindow : Window
         grid.Children.Add(_statusText);
 
         // Create custom progress bar using Rectangle
-        _progressContainer = new Border
-        {
+        _progressContainer = new Border {
             Height = 24,
             Background = SystemParameters.HighContrast 
                 ? SystemColors.ControlBrush 
@@ -59,8 +55,7 @@ public class MapUpdateProgressWindow : Window
             CornerRadius = new CornerRadius(2)
         };
 
-        _progressIndicator = new Rectangle
-        {
+        _progressIndicator = new Rectangle {
             Fill = SystemParameters.HighContrast 
                 ? SystemColors.HighlightBrush 
                 : new SolidColorBrush(Color.FromRgb(0, 120, 212)),
@@ -75,20 +70,16 @@ public class MapUpdateProgressWindow : Window
         Content = grid;
     }
 
-    public void UpdateStatus(string status)
-    {
+    public void UpdateStatus(string status) {
         _statusText.Text = status;
     }
 
-    public void SetTotalMaps(int total)
-    {
+    public void SetTotalMaps(int total) {
         _maxValue = total;
     }
 
-    public void UpdateProgress(int current, int total)
-    {
-        Dispatcher.Invoke(() =>
-        {
+    public void UpdateProgress(int current, int total) {
+        Dispatcher.Invoke(() => {
             // Update rectangle width based on progress
             var containerWidth = _progressContainer.ActualWidth - 2; // Subtract border
             var percent = (current / (double)total) * 100.0;

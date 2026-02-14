@@ -8,8 +8,7 @@ using System.Windows.Interop;
 
 namespace UYALauncher;
 
-public static class PCSX2Manager
-{
+public static class PCSX2Manager {
     private static Process? _pcsx2Process;
     private static IntPtr _pcsx2Window;
     private static CancellationTokenSource? _monitorCts;
@@ -46,8 +45,7 @@ public static class PCSX2Manager
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
+    private struct RECT {
         public int Left;
         public int Top;
         public int Right;
@@ -67,10 +65,8 @@ public static class PCSX2Manager
     private const uint SWP_FRAMECHANGED = 0x0020;
     private const int SW_SHOW = 5;
 
-    public static bool Launch(ConfigurationData config)
-    {
-        try
-        {
+    public static bool Launch(ConfigurationData config) {
+        try {
             Console.WriteLine("=== PCSX2 Launch Debug ===");
             Console.WriteLine($"ISO Path: {config.IsoPath}");
             Console.WriteLine($"PCSX2 Path: {config.Pcsx2Path}");
@@ -78,8 +74,7 @@ public static class PCSX2Manager
             Console.WriteLine($"PCSX2 Exists: {System.IO.File.Exists(config.Pcsx2Path)}");
 
             // Check if files exist
-            if (!System.IO.File.Exists(config.IsoPath))
-            {
+            if (!System.IO.File.Exists(config.IsoPath)) {
                 MessageBox.Show(
                     $"ISO file not found:\n{config.IsoPath}",
                     "Launch Error",
@@ -88,8 +83,7 @@ public static class PCSX2Manager
                 return false;
             }
 
-            if (!System.IO.File.Exists(config.Pcsx2Path))
-            {
+            if (!System.IO.File.Exists(config.Pcsx2Path)) {
                 MessageBox.Show(
                     $"PCSX2 executable not found:\n{config.Pcsx2Path}",
                     "Launch Error",
@@ -113,8 +107,7 @@ public static class PCSX2Manager
 
             Console.WriteLine($"Command: \"{config.Pcsx2Path}\" {arguments}");
 
-            var startInfo = new ProcessStartInfo
-            {
+            var startInfo = new ProcessStartInfo {
                 FileName = config.Pcsx2Path,
                 Arguments = arguments,
                 UseShellExecute = true,  // Changed to true for better compatibility
@@ -125,8 +118,7 @@ public static class PCSX2Manager
             Console.WriteLine("Starting process...");
             _pcsx2Process = Process.Start(startInfo);
 
-            if (_pcsx2Process == null)
-            {
+            if (_pcsx2Process == null) {
                 MessageBox.Show(
                     "Failed to launch PCSX2. Process.Start returned null.\n\n" +
                     "This might happen if:\n" +
@@ -138,12 +130,9 @@ public static class PCSX2Manager
                     MessageBoxImage.Error);
                 return false;
             }
-
             Console.WriteLine($"PCSX2 launched successfully (PID: {_pcsx2Process.Id})");
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Console.WriteLine($"Exception: {ex.GetType().Name}");
             Console.WriteLine($"Message: {ex.Message}");
             Console.WriteLine($"Stack: {ex.StackTrace}");
@@ -159,10 +148,8 @@ public static class PCSX2Manager
         }
     }
 
-    public static async Task<bool> EmbedWindow(Window parentWindow, bool showConsole)
-    {
-        if (_pcsx2Process == null)
-        {
+    public static async Task<bool> EmbedWindow(Window parentWindow, bool showConsole) {
+        if (_pcsx2Process == null) {
             if (showConsole)
                 Console.WriteLine("EmbedWindow: _pcsx2Process is null");
             return false;
@@ -173,11 +160,9 @@ public static class PCSX2Manager
 
         // Wait for PCSX2 window to appear
         var maxAttempts = 20;
-        for (int i = 0; i < maxAttempts; i++)
-        {
+        for (int i = 0; i < maxAttempts; i++) {
             _pcsx2Window = FindPcsx2Window();
-            if (_pcsx2Window != IntPtr.Zero)
-            {
+            if (_pcsx2Window != IntPtr.Zero) {
                 if (showConsole)
                     Console.WriteLine($"Found PCSX2 window after {i + 1} attempts!");
                 break;
@@ -189,8 +174,7 @@ public static class PCSX2Manager
             await Task.Delay(500);
         }
 
-        if (_pcsx2Window == IntPtr.Zero)
-        {
+        if (_pcsx2Window == IntPtr.Zero) {
             if (showConsole)
                 Console.WriteLine($"Could not find PCSX2 window after {maxAttempts} attempts.");
 
@@ -203,14 +187,12 @@ public static class PCSX2Manager
             return false;
         }
 
-        try
-        {
+        try {
             if (showConsole)
                 Console.WriteLine("Embedding PCSX2 window...");
 
             // Get PCSX2 window size
-            if (GetWindowRect(_pcsx2Window, out RECT pcsx2Rect))
-            {
+            if (GetWindowRect(_pcsx2Window, out RECT pcsx2Rect)) {
                 int pcsx2Width = pcsx2Rect.Right - pcsx2Rect.Left;
                 int pcsx2Height = pcsx2Rect.Bottom - pcsx2Rect.Top;
                 
@@ -273,36 +255,30 @@ public static class PCSX2Manager
                 Console.WriteLine("PCSX2 window embedded and shown successfully!");
 
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             if (showConsole)
                 Console.WriteLine($"Error embedding window: {ex.Message}");
             return false;
         }
     }
 
-    private static IntPtr FindPcsx2Window()
-    {
+    private static IntPtr FindPcsx2Window() {
         if (_pcsx2Process == null)
             return IntPtr.Zero;
 
         IntPtr foundWindow = IntPtr.Zero;
         var processId = (uint)_pcsx2Process.Id;
 
-        EnumWindows((hWnd, lParam) =>
-        {
+        EnumWindows((hWnd, lParam) => {
             GetWindowThreadProcessId(hWnd, out uint windowProcessId);
 
-            if (windowProcessId == processId && IsWindowVisible(hWnd))
-            {
+            if (windowProcessId == processId && IsWindowVisible(hWnd)) {
                 var className = new System.Text.StringBuilder(256);
                 GetClassName(hWnd, className, className.Capacity);
                 var classStr = className.ToString();
 
                 // Filter out console and IME windows
-                if (classStr != "ConsoleWindowClass" && classStr != "IME")
-                {
+                if (classStr != "ConsoleWindowClass" && classStr != "IME") {
                     foundWindow = hWnd;
                     return false; // Stop enumeration
                 }
@@ -314,28 +290,22 @@ public static class PCSX2Manager
         return foundWindow;
     }
 
-    public static void StartMonitoring(Window? parentWindow, bool showConsole)
-    {
+    public static void StartMonitoring(Window? parentWindow, bool showConsole) {
         _monitorCts = new CancellationTokenSource();
         var token = _monitorCts.Token;
 
-        Task.Run(async () =>
-        {
+        Task.Run(async () => {
             if (showConsole)
                 Console.WriteLine("PCSX2 process monitor started.");
 
-            try
-            {
-                while (!token.IsCancellationRequested && _pcsx2Process != null)
-                {
-                    if (_pcsx2Process.HasExited)
-                    {
+            try {
+                while (!token.IsCancellationRequested && _pcsx2Process != null) {
+                    if (_pcsx2Process.HasExited) {
                         if (showConsole)
                             Console.WriteLine("PCSX2 process has exited.");
 
                         // Close parent window on UI thread
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
+                        Application.Current.Dispatcher.Invoke(() => {
                             parentWindow?.Close();
                         });
 
@@ -344,9 +314,7 @@ public static class PCSX2Manager
 
                     await Task.Delay(1000, token);
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 // Normal cancellation
             }
 
@@ -355,16 +323,13 @@ public static class PCSX2Manager
         }, token);
     }
 
-    public static void Terminate()
-    {
-        try
-        {
+    public static void Terminate() {
+        try {
             _monitorCts?.Cancel();
             _monitorCts?.Dispose();
             _monitorCts = null;
 
-            if (_pcsx2Process != null && !_pcsx2Process.HasExited)
-            {
+            if (_pcsx2Process != null && !_pcsx2Process.HasExited) {
                 _pcsx2Process.Kill();
                 _pcsx2Process.WaitForExit(2000);
             }
@@ -372,20 +337,14 @@ public static class PCSX2Manager
             _pcsx2Process?.Dispose();
             _pcsx2Process = null;
             _pcsx2Window = IntPtr.Zero;
-        }
-        catch
-        {
+        }catch {
             // Ignore cleanup errors
         }
     }
 
-    public static void ResizeEmbeddedWindow(double width, double height)
-    {
-        if (_pcsx2Window != IntPtr.Zero)
-        {
-            SetWindowPos(_pcsx2Window, IntPtr.Zero, 0, 0,
-                        (int)width, (int)height,
-                        SWP_NOZORDER);
+    public static void ResizeEmbeddedWindow(double width, double height) {
+        if (_pcsx2Window != IntPtr.Zero) {
+            SetWindowPos(_pcsx2Window, IntPtr.Zero, 0, 0, (int)width, (int)height, SWP_NOZORDER);
         }
     }
 }

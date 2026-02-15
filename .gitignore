@@ -38,4 +38,3 @@ bin/
 obj/
 bin/*
 obj/*
-*.csproj

@@ -47,15 +47,6 @@ public class LauncherWindow : Window {
             PCSX2Manager.ResizeEmbeddedWindow(ActualWidth, ActualHeight);
         };
 
-        // Handle state changes to show window when exiting fullscreen
-        StateChanged += (s, e) => {
-            // If we're embedded and fullscreen, keep checking if PCSX2 exits fullscreen
-            if (_config.EmbedWindow && _config.Fullscreen && WindowState != WindowState.Minimized) {
-                Console.WriteLine("Window state changed - showing window");
-                Show();
-            }
-        };
-
         Loaded += OnLoaded;
         Closing += OnClosing;
         SourceInitialized += OnSourceInitialized;
@@ -229,30 +220,28 @@ public class LauncherWindow : Window {
 
             if (!embedded) {
                 Console.WriteLine("WARNING: Embedding failed, but PCSX2 is running in separate window");
+                // Show window if embedding failed
+                Visibility = Visibility.Visible;
+                WindowState = WindowState.Normal;
+                Activate();
             } else {
                 Console.WriteLine("Embedding successful!");
                 
                 // Start monitoring PCSX2 window size changes
                 PCSX2Manager.StartSizeMonitoring(this);
-            }
-            
-            // Show or hide window based on fullscreen setting
-            if (_config.Fullscreen) {
-                // Hide the launcher window when fullscreen
-                Console.WriteLine("Fullscreen mode - hiding launcher window");
-                WindowState = WindowState.Minimized;
-                Hide();
                 
-                // Focus the embedded PCSX2 window
-                await Task.Delay(500);
-                PCSX2Manager.FocusEmbeddedWindow();
-            } else {
-                // Show the launcher window when not fullscreen
-                Console.WriteLine("Windowed mode - showing launcher window");
-                WindowState = WindowState.Normal;
-                Activate();
+                // Only show window if not fullscreen
+                bool isFullscreen = PCSX2Manager.IsPCSX2Fullscreen();
+                
+                if (!isFullscreen) {
+                    Console.WriteLine("PCSX2 is windowed - showing parent window");
+                    Visibility = Visibility.Visible;
+                    WindowState = WindowState.Normal;
+                    Activate();
+                } else {
+                    Console.WriteLine("PCSX2 is fullscreen - keeping parent window hidden");
+                }
             }
-            Console.WriteLine("Launcher window visibility set based on fullscreen mode");
         } else {
             Console.WriteLine("Embed mode disabled, PCSX2 will run in separate window");
             

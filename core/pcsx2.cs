@@ -242,8 +242,8 @@ public static class PCSX2Manager {
                 Console.WriteLine($"SetParent result: {result}");
 
             // Resize PCSX2 to fill parent window (now that parent is sized correctly)
-            var width = (int)parentWindow.ActualWidth;
-            var height = (int)parentWindow.ActualHeight;
+            var width = (int)parentWindow.Width;
+            var height = (int)parentWindow.Height;
             if (showConsole)
                 Console.WriteLine($"Sizing embedded PCSX2 to fill parent: {width}x{height}");
 
@@ -256,6 +256,9 @@ public static class PCSX2Manager {
 
             // Show PCSX2 window (now embedded and properly sized)
             ShowWindow(_pcsx2Window, SW_SHOW);
+            
+            // Focus the PCSX2 window to bring it to front (especially important for fullscreen)
+            SetForegroundWindow(_pcsx2Window);
 
             if (showConsole)
                 Console.WriteLine("PCSX2 window embedded and shown successfully!");
@@ -388,13 +391,20 @@ public static class PCSX2Manager {
         Console.WriteLine("Failed to focus PCSX2 window after 10 attempts");
     }
 
-    public static void FocusEmbeddedWindow() {
-        if (_pcsx2Window != IntPtr.Zero) {
-            SetForegroundWindow(_pcsx2Window);
-            Console.WriteLine("Embedded PCSX2 window focused");
-        } else {
-            Console.WriteLine("Cannot focus embedded window - window handle is null");
+    public static bool IsPCSX2Fullscreen() {
+        if (_pcsx2Window == IntPtr.Zero)
+            return false;
+            
+        if (GetWindowRect(_pcsx2Window, out RECT rect)) {
+            int width = rect.Right - rect.Left;
+            int height = rect.Bottom - rect.Top;
+            int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
+            int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+            
+            return (width >= screenWidth - 50 && height >= screenHeight - 50);
         }
+        
+        return false;
     }
 
     public static void StartSizeMonitoring(Window parentWindow) {
@@ -417,16 +427,26 @@ public static class PCSX2Manager {
 
                             Console.WriteLine($"PCSX2 window size changed to {width}x{height}");
 
-                            // Update parent window size on UI thread
+                            // Check if fullscreen
+                            int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
+                            int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+                            bool isFullscreen = (width >= screenWidth - 50 && height >= screenHeight - 50);
+
+                            // Update parent window on UI thread
                             Application.Current.Dispatcher.Invoke(() => {
                                 parentWindow.Width = width;
                                 parentWindow.Height = height;
+                                Console.WriteLine($"Parent window resized to match PCSX2: {width}x{height}");
                                 
-                                // Show the window if it was hidden (exiting fullscreen)
-                                if (!parentWindow.IsVisible) {
+                                // Show or hide based on fullscreen state
+                                if (isFullscreen) {
+                                    Console.WriteLine("PCSX2 entered fullscreen - hiding parent window");
+                                    parentWindow.WindowState = WindowState.Minimized;
+                                    parentWindow.Hide();
+                                } else {
+                                    Console.WriteLine("PCSX2 exited fullscreen - showing parent window");
                                     parentWindow.Show();
                                     parentWindow.WindowState = WindowState.Normal;
-                                    Console.WriteLine("Window shown after size change");
                                 }
                             });
                         }

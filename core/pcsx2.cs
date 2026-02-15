@@ -12,6 +12,9 @@ public static class PCSX2Manager {
     private static Process? _pcsx2Process;
     private static IntPtr _pcsx2Window;
     private static CancellationTokenSource? _monitorCts;
+    private static CancellationTokenSource? _sizeMonitorCts;
+    private static int _lastWidth = 0;
+    private static int _lastHeight = 0;
 
     // Win32 API imports
     [DllImport("user32.dll", SetLastError = true)]
@@ -43,6 +46,9 @@ public static class PCSX2Manager {
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT {
@@ -304,9 +310,11 @@ public static class PCSX2Manager {
                         if (showConsole)
                             Console.WriteLine("PCSX2 process has exited.");
 
-                        // Close parent window on UI thread
+                        // Shut down the entire application on UI thread
                         Application.Current.Dispatcher.Invoke(() => {
-                            parentWindow?.Close();
+                            if (showConsole)
+                                Console.WriteLine("Shutting down application...");
+                            Application.Current.Shutdown();
                         });
 
                         break;
@@ -329,6 +337,10 @@ public static class PCSX2Manager {
             _monitorCts?.Dispose();
             _monitorCts = null;
 
+            _sizeMonitorCts?.Cancel();
+            _sizeMonitorCts?.Dispose();
+            _sizeMonitorCts = null;
+
             if (_pcsx2Process != null && !_pcsx2Process.HasExited) {
                 _pcsx2Process.Kill();
                 _pcsx2Process.WaitForExit(2000);
@@ -346,5 +358,87 @@ public static class PCSX2Manager {
         if (_pcsx2Window != IntPtr.Zero) {
             SetWindowPos(_pcsx2Window, IntPtr.Zero, 0, 0, (int)width, (int)height, SWP_NOZORDER);
         }
+    }
+
+    public static async Task FocusPCSX2Window() {
+        if (_pcsx2Process == null) {
+            Console.WriteLine("Cannot focus PCSX2 - process is null");
+            return;
+        }
+        
+        // Try multiple times to find and focus the window
+        for (int i = 0; i < 10; i++) {
+            IntPtr pcsx2Window = FindPcsx2Window();
+            if (pcsx2Window != IntPtr.Zero) {
+                // Try to bring to foreground
+                bool success = SetForegroundWindow(pcsx2Window);
+                if (success) {
+                    Console.WriteLine("PCSX2 window focused successfully");
+                    return;
+                } else {
+                    Console.WriteLine($"SetForegroundWindow failed, attempt {i + 1}/10");
+                }
+            } else {
+                Console.WriteLine($"Could not find PCSX2 window yet, attempt {i + 1}/10");
+            }
+            
+            await Task.Delay(500);
+        }
+        
+        Console.WriteLine("Failed to focus PCSX2 window after 10 attempts");
+    }
+
+    public static void FocusEmbeddedWindow() {
+        if (_pcsx2Window != IntPtr.Zero) {
+            SetForegroundWindow(_pcsx2Window);
+            Console.WriteLine("Embedded PCSX2 window focused");
+        } else {
+            Console.WriteLine("Cannot focus embedded window - window handle is null");
+        }
+    }
+
+    public static void StartSizeMonitoring(Window parentWindow) {
+        _sizeMonitorCts = new CancellationTokenSource();
+        var token = _sizeMonitorCts.Token;
+
+        Task.Run(async () => {
+            Console.WriteLine("PCSX2 window size monitor started.");
+
+            try {
+                while (!token.IsCancellationRequested && _pcsx2Window != IntPtr.Zero) {
+                    if (GetWindowRect(_pcsx2Window, out RECT rect)) {
+                        int width = rect.Right - rect.Left;
+                        int height = rect.Bottom - rect.Top;
+
+                        // Check if size changed
+                        if (width != _lastWidth || height != _lastHeight) {
+                            _lastWidth = width;
+                            _lastHeight = height;
+
+                            Console.WriteLine($"PCSX2 window size changed to {width}x{height}");
+
+                            // Update parent window size on UI thread
+                            Application.Current.Dispatcher.Invoke(() => {
+                                parentWindow.Width = width;
+                                parentWindow.Height = height;
+                                
+                                // Show the window if it was hidden (exiting fullscreen)
+                                if (!parentWindow.IsVisible) {
+                                    parentWindow.Show();
+                                    parentWindow.WindowState = WindowState.Normal;
+                                    Console.WriteLine("Window shown after size change");
+                                }
+                            });
+                        }
+                    }
+
+                    await Task.Delay(500, token); // Check every 500ms
+                }
+            } catch (OperationCanceledException) {
+                // Normal cancellation
+            }
+
+            Console.WriteLine("PCSX2 window size monitor stopped.");
+        }, token);
     }
 }

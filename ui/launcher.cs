@@ -47,6 +47,15 @@ public class LauncherWindow : Window {
             PCSX2Manager.ResizeEmbeddedWindow(ActualWidth, ActualHeight);
         };
 
+        // Handle state changes to show window when exiting fullscreen
+        StateChanged += (s, e) => {
+            // If we're embedded and fullscreen, keep checking if PCSX2 exits fullscreen
+            if (_config.EmbedWindow && _config.Fullscreen && WindowState != WindowState.Minimized) {
+                Console.WriteLine("Window state changed - showing window");
+                Show();
+            }
+        };
+
         Loaded += OnLoaded;
         Closing += OnClosing;
         SourceInitialized += OnSourceInitialized;
@@ -141,9 +150,11 @@ public class LauncherWindow : Window {
         if (_openSettingsWindow != null) {
             Console.WriteLine("Settings window already open - bringing to front");
             
-            // Bring to front and focus
+            // Force to top and activate
+            _openSettingsWindow.Topmost = true;
             _openSettingsWindow.Activate();
             _openSettingsWindow.Focus();
+            _openSettingsWindow.Topmost = false; // Reset so it doesn't stay always on top
             
             // If minimized, restore it
             if (_openSettingsWindow.WindowState == WindowState.Minimized) {
@@ -163,7 +174,11 @@ public class LauncherWindow : Window {
             _openSettingsWindow = null;
         };
         
+        // Make it topmost temporarily to ensure it appears above fullscreen
+        settingsWindow.Topmost = true;
         settingsWindow.Show();
+        settingsWindow.Activate();
+        settingsWindow.Topmost = false; // Reset after showing
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e) {
@@ -187,6 +202,15 @@ public class LauncherWindow : Window {
             Console.WriteLine("No ISO path configured, skipping map updates");
         }
 
+        // Apply patches AFTER map updates, BEFORE launching PCSX2
+        Console.WriteLine("Applying patches...");
+        try {
+            PatchManager.ApplyPatches(_config);
+            Console.WriteLine("Patches applied successfully");
+        } catch (Exception ex) {
+            Console.WriteLine($"Patch error: {ex.Message}");
+        }
+
         // Launch PCSX2
         Console.WriteLine("Attempting to launch PCSX2...");
         if (!PCSX2Manager.Launch(_config)) {
@@ -207,14 +231,34 @@ public class LauncherWindow : Window {
                 Console.WriteLine("WARNING: Embedding failed, but PCSX2 is running in separate window");
             } else {
                 Console.WriteLine("Embedding successful!");
+                
+                // Start monitoring PCSX2 window size changes
+                PCSX2Manager.StartSizeMonitoring(this);
             }
             
-            // Restore window now that embedding is complete
-            WindowState = WindowState.Normal;
-            Activate();
-            Console.WriteLine("Launcher window restored after embedding");
+            // Show or hide window based on fullscreen setting
+            if (_config.Fullscreen) {
+                // Hide the launcher window when fullscreen
+                Console.WriteLine("Fullscreen mode - hiding launcher window");
+                WindowState = WindowState.Minimized;
+                Hide();
+                
+                // Focus the embedded PCSX2 window
+                await Task.Delay(500);
+                PCSX2Manager.FocusEmbeddedWindow();
+            } else {
+                // Show the launcher window when not fullscreen
+                Console.WriteLine("Windowed mode - showing launcher window");
+                WindowState = WindowState.Normal;
+                Activate();
+            }
+            Console.WriteLine("Launcher window visibility set based on fullscreen mode");
         } else {
             Console.WriteLine("Embed mode disabled, PCSX2 will run in separate window");
+            
+            // Wait for PCSX2 window to appear, then focus it
+            await Task.Delay(1000);
+            await PCSX2Manager.FocusPCSX2Window();
         }
 
         // Start monitoring PCSX2 process

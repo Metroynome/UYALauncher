@@ -121,9 +121,7 @@ public partial class MainWindow : Window {
         if (!ValidateAndSave())
             return;
 
-        _cancelled = false;
-        DialogResult = true;
-        Close();
+        SaveAndRelaunch_Click(sender, e);
     }
 
     private bool ValidateAndSave() {
@@ -174,7 +172,6 @@ public partial class MainWindow : Window {
         };
 
         Configuration.Save(config);
-        PatchManager.ApplyPatches(config);
     }
 
     protected override void OnClosing(CancelEventArgs e) {

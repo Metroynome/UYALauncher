@@ -13,9 +13,7 @@ public partial class App : Application {
 
     protected override void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
-
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
-
+        
         // Handle self-update command line argument
         if (e.Args.Length > 0 && e.Args[0] == "--self-update") {
             if (e.Args.Length >= 2) {
@@ -50,7 +48,7 @@ public partial class App : Application {
         if (config.ShowConsole) {
             AllocConsole();
             Console.WriteLine("=== UYA Launcher Starting ===");
-            Console.WriteLine($"Version: 3.0.0");
+            Console.WriteLine($"Version: {config.Version}");
             Console.WriteLine($"Config Path: {Configuration.GetConfigPath()}");
         }
 
@@ -58,10 +56,6 @@ public partial class App : Application {
         if (config.AutoUpdate) {
             _ = Updater.CheckAndUpdateAsync(true);
         }
-
-        // Apply patches
-        PatchManager.ApplyPatches(config);
-
         // Create and show launcher window
         var launcherWindow = new LauncherWindow(config);
         MainWindow = launcherWindow;

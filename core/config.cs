@@ -10,7 +10,7 @@ public class PatchFlags {
 }
 
 public class ConfigurationData {
-    public string Version { get; set; } = "2.0.0";
+    public string Version { get; set; } = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.8.2";
     public bool ShowConsole { get; set; } = false;
     public string IsoPath { get; set; } = string.Empty;
     public string Pcsx2Path { get; set; } = string.Empty;

@@ -11,7 +11,9 @@ namespace UYALauncher;
 public static class Updater {
     private const string GitHubUser = "Metroynome";
     private const string GitHubRepo = "UYALauncher";
-    private const string CurrentVersion = "3.0.0";
+    
+    // Get version from assembly instead of hardcoding
+    private static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.8.2";
 
     public static async Task CheckAndUpdateAsync(bool silent) {
         try {
@@ -169,17 +171,37 @@ public static class Updater {
             var currentExe = Environment.ProcessPath ?? 
                            System.Reflection.Assembly.GetExecutingAssembly().Location;
 
-            // Wait for original process to exit
-            System.Threading.Thread.Sleep(1000);
+            // Create a batch file to perform the update
+            var batchPath = Path.Combine(Path.GetTempPath(), "UYALauncher_Update.bat");
+            var processId = Process.GetCurrentProcess().Id;
+            
+            var batchContent = $@"@echo off
+echo Waiting for UYA Launcher to close...
+:wait
+tasklist /FI ""PID eq {processId}"" 2>NUL | find ""{processId}"" >NUL
+if not errorlevel 1 (
+    timeout /t 1 /nobreak >NUL
+    goto wait
+)
+echo Updating...
+timeout /t 1 /nobreak >NUL
+del /f /q ""{currentExe}"" 2>NUL
+move /y ""{newExePath}"" ""{currentExe}""
+echo Launching updated version...
+start """" ""{currentExe}""
+del ""%~f0""
+";
+            
+            File.WriteAllText(batchPath, batchContent);
 
-            // Replace exe
-            if (File.Exists(currentExe))
-                File.Delete(currentExe);
-
-            File.Move(newExePath, currentExe);
-
-            // Relaunch
-            Process.Start(new ProcessStartInfo {FileName = currentExe, UseShellExecute = true});
+            // Launch the batch file
+            Process.Start(new ProcessStartInfo {
+                FileName = batchPath,
+                UseShellExecute = true,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            });
+            
         } catch (Exception ex) {
             MessageBox.Show(
                 $"Self-update failed:\n\n{ex.Message}",
@@ -187,6 +209,8 @@ public static class Updater {
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+        
+        // Exit the application
         Environment.Exit(0);
     }
 

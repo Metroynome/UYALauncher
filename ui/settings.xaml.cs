@@ -40,6 +40,10 @@ public partial class MainWindow : Window {
         } else {
             Title = "UYA Launcher - First Run Setup";
         }
+        // Set version from assembly
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.8.2";
+        VersionTextBlock.Text = version;
+
         LoadConfiguration();
         ValidateLaunchButton();
 

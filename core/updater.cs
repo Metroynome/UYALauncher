@@ -13,7 +13,8 @@ public static class Updater {
     private const string GitHubRepo = "UYALauncher";
     
     // Get version from assembly instead of hardcoding
-    private static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.8.2";
+    private static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly()
+        .GetName().Version?.ToString(3) ?? "3.0.0";
 
     public static async Task CheckAndUpdateAsync(bool silent) {
         try {
@@ -71,7 +72,7 @@ public static class Updater {
             PCSX2Manager.Terminate();
 
             // Launch self-update process
-            var currentExe = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var currentExe = Environment.ProcessPath ?? AppContext.BaseDirectory;
             var args = $"--self-update \"{newExePath}|{remoteVersion}\"";
 
             Process.Start(new ProcessStartInfo {
@@ -168,8 +169,7 @@ public static class Updater {
             // Save version
             Configuration.SetInstalledVersion(version);
 
-            var currentExe = Environment.ProcessPath ?? 
-                           System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var currentExe = Environment.ProcessPath ?? AppContext.BaseDirectory;
 
             // Create a batch file to perform the update
             var batchPath = Path.Combine(Path.GetTempPath(), "UYALauncher_Update.bat");

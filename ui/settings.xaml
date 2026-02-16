@@ -1,4 +1,4 @@
-<Window x:Class="UYALauncher.MainWindow"
+<Window x:Class="UYALauncher.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:UYALauncher"
@@ -51,23 +51,23 @@
                                     MinWidth="100"/>
                         </Grid>
 
-                        <!-- PCSX2 Path -->
-                        <TextBlock Text="PCSX2 Executable:" Style="{StaticResource Label}"/>
+                        <!-- PS2 BIOS -->
+                        <TextBlock Text="PS2 BIOS:" Style="{StaticResource Label}"/>
                         <Grid Margin="0,0,0,20">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="Pcsx2PathTextBox" 
+                            <TextBox x:Name="BiosPathTextBox" 
                                      Grid.Column="0" 
                                      Style="{StaticResource ModernTextBox}"
                                      IsReadOnly="True"
                                      Margin="0,0,10,0"/>
-                            <Button x:Name="BrowsePcsx2Button" 
+                            <Button x:Name="BrowseBiosButton" 
                                     Grid.Column="1" 
                                     Content="Browse" 
                                     Style="{StaticResource SecondaryButton}"
-                                    Click="BrowsePcsx2_Click"
+                                    Click="BrowseBios_Click"
                                     MinWidth="100"/>
                         </Grid>
 

@@ -11,7 +11,7 @@ public class LauncherWindow : Window {
     private readonly ConfigurationData _config;
     private const int HOTKEY_F11 = 9001;
     private const int HOTKEY_CTRL_F11 = 9002;
-    private static MainWindow? _openSettingsWindow = null;
+    private static SettingsWindow? _openSettingsWindow = null;
 
     // Win32 API for global hotkeys
     [DllImport("user32.dll", SetLastError = true)]
@@ -156,7 +156,7 @@ public class LauncherWindow : Window {
         }
 
         Console.WriteLine("Opening new settings window");
-        var settingsWindow = new MainWindow(hotkeyMode: true);
+        var settingsWindow = new SettingsWindow(hotkeyMode: true);
         _openSettingsWindow = settingsWindow;
         
         // Clear reference when window closes
@@ -175,7 +175,8 @@ public class LauncherWindow : Window {
     private async void OnLoaded(object sender, RoutedEventArgs e) {
         Console.WriteLine("=== LauncherWindow.OnLoaded ===");
         Console.WriteLine($"ISO Path: '{_config.IsoPath}'");
-        Console.WriteLine($"PCSX2 Path: '{_config.Pcsx2Path}'");
+        Console.WriteLine($"BIOS Path: '{_config.BiosPath}'");
+        Console.WriteLine($"PCSX2 Path: '{Configuration.GetPcsx2Path()}'");
         Console.WriteLine($"Region: '{_config.Region}'");
         Console.WriteLine($"EmbedWindow: {_config.EmbedWindow}");
         Console.WriteLine($"ShowConsole: {_config.ShowConsole}");

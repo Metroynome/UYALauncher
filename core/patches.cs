@@ -62,11 +62,16 @@ public static class PatchManager {
     }
 
     private static void ManagePnachPatches(ConfigurationData config, string region) {
-        var patchesFolder = FindPatchesFolder(config.Pcsx2Path);
-        if (string.IsNullOrEmpty(patchesFolder)) {
-            Console.WriteLine("Patches folder not found!");
-            return;
+        // Use hardcoded patches folder from data/emulator/patches
+        var patchesFolder = Configuration.GetPatchesPath();
+        
+        // Create patches folder if it doesn't exist
+        if (!Directory.Exists(patchesFolder)) {
+            Directory.CreateDirectory(patchesFolder);
+            Console.WriteLine($"Created patches folder: {patchesFolder}");
         }
+        
+        Console.WriteLine($"Using patches folder: {patchesFolder}");
 
         bool isPal = region == "PAL";
 
@@ -114,28 +119,6 @@ public static class PatchManager {
             Directory.CreateDirectory(patchesFolder);
             File.WriteAllLines(pnachPath, fileLines, Encoding.UTF8);
         }
-    }
-
-    private static string? FindPatchesFolder(string pcsx2Path) {
-        if (string.IsNullOrEmpty(pcsx2Path))
-            return null;
-
-        var pcsx2Dir = Path.GetDirectoryName(pcsx2Path);
-        if (pcsx2Dir == null)
-            return null;
-
-        // Try PCSX2 installation directory
-        var folder1 = Path.Combine(pcsx2Dir, "patches");
-        if (Directory.Exists(folder1))
-            return folder1;
-
-        // Try Documents folder
-        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var folder2 = Path.Combine(documents, "PCSX2", "patches");
-        if (Directory.Exists(folder2))
-            return folder2;
-
-        return null;
     }
 
     private static (string filename, string gameTitle) GetPatchFileInfo(string region, PatchTarget target) {

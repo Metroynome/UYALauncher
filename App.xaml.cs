@@ -13,7 +13,9 @@ public partial class App : Application {
 
     protected override void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
-        
+
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
         // Handle self-update command line argument
         if (e.Args.Length > 0 && e.Args[0] == "--self-update") {
             if (e.Args.Length >= 2) {
@@ -32,7 +34,7 @@ public partial class App : Application {
 
         // Show setup dialog if needed
         if (firstRun || configIncomplete) {
-            var setupWindow = new MainWindow(hotkeyMode: false);
+            var setupWindow = new SettingsWindow(hotkeyMode: false);
             var result = setupWindow.ShowDialog();
 
             if (setupWindow.WasCancelled || result != true) {
@@ -56,14 +58,20 @@ public partial class App : Application {
         if (config.AutoUpdate) {
             _ = Updater.CheckAndUpdateAsync(true);
         }
+
         // Create and show launcher window
         var launcherWindow = new LauncherWindow(config);
         MainWindow = launcherWindow;
 
         if (config.EmbedWindow) {
+            // Show the window in hidden/minimized state - OnLoaded will determine final visibility
+            launcherWindow.Visibility = Visibility.Hidden;
             launcherWindow.Show();
+            if (config.ShowConsole) {
+                Console.WriteLine("Embed mode - window created hidden, visibility will be determined after embedding");
+            }
         } else {
-            // launcherWindow.WindowState = WindowState.Minimized;
+            // Non-embed mode: create hidden window for hotkeys
             launcherWindow.Visibility = Visibility.Hidden;
             launcherWindow.Show();
         }

@@ -1,24 +1,21 @@
-using Microsoft.Win32;
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 
 namespace UYALauncher;
 
-public partial class MainWindow : Window {
+public partial class SettingsWindow : Window {
     private readonly bool _isHotkeyMode;
     private bool _cancelled = false;
 
     // Default constructor for XAML
-    public MainWindow() : this(false) {
-        Console.WriteLine("MainWindow created via default constructor (from XAML?)");
+    public SettingsWindow() : this(false) {
+        Console.WriteLine("SettingsWindow created via default constructor (from XAML?)");
     }
 
-    public MainWindow(bool hotkeyMode = false) {
-        Console.WriteLine($"MainWindow created with hotkeyMode={hotkeyMode}");
+    public SettingsWindow(bool hotkeyMode = false) {
+        Console.WriteLine($"SettingsWindow created with hotkeyMode={hotkeyMode}");
         
         try {
             InitializeComponent();            
@@ -40,44 +37,73 @@ public partial class MainWindow : Window {
         } else {
             Title = "UYA Launcher - First Run Setup";
         }
+        
         // Set version from assembly
-        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.8.2";
+        var version = System.Reflection.Assembly.GetExecutingAssembly()
+            .GetName().Version?.ToString(3) ?? "3.0.0";
         VersionTextBlock.Text = version;
-
+        
         LoadConfiguration();
         ValidateLaunchButton();
 
         // Subscribe to text changed events
         IsoPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
-        Pcsx2PathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
+        BiosPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
     }
 
+    public bool WasCancelled => _cancelled;
+
     private void LoadConfiguration() {
-        if (!Configuration.IsFirstRun()) {
-            var config = Configuration.Load();
-            IsoPathTextBox.Text = config.IsoPath;
-            Pcsx2PathTextBox.Text = config.Pcsx2Path;
-            RegionComboBox.SelectedIndex = config.Region == "PAL" ? 1 : 0;
-            AutoUpdateCheckBox.IsChecked = config.AutoUpdate;
-            FullscreenCheckBox.IsChecked = config.Fullscreen;
-            BootToMultiplayerCheckBox.IsChecked = config.Patches.BootToMultiplayer;
-            WidescreenCheckBox.IsChecked = config.Patches.Widescreen;
-            EmbedWindowCheckBox.IsChecked = config.EmbedWindow;
-            ShowConsoleCheckBox.IsChecked = config.ShowConsole;
+        var config = Configuration.Load();
+        IsoPathTextBox.Text = config.IsoPath;
+        BiosPathTextBox.Text = config.BiosPath;
+        
+        // Set region
+        foreach (ComboBoxItem item in RegionComboBox.Items) {
+            if (item.Content.ToString() == config.Region) {
+                RegionComboBox.SelectedItem = item;
+                break;
+            }
         }
+
+        // Set checkboxes
+        AutoUpdateCheckBox.IsChecked = config.AutoUpdate;
+        EmbedWindowCheckBox.IsChecked = config.EmbedWindow;
+        FullscreenCheckBox.IsChecked = config.Fullscreen;
+        BootToMultiplayerCheckBox.IsChecked = config.Patches.BootToMultiplayer;
+        WidescreenCheckBox.IsChecked = config.Patches.Widescreen;
+        ShowConsoleCheckBox.IsChecked = config.ShowConsole;
+    }
+
+    private void SaveConfiguration() {
+        var config = new ConfigurationData {
+            IsoPath = IsoPathTextBox.Text,
+            BiosPath = BiosPathTextBox.Text,
+            Region = ((ComboBoxItem)RegionComboBox.SelectedItem)?.Content.ToString() ?? "NTSC",
+            AutoUpdate = AutoUpdateCheckBox.IsChecked ?? true,
+            EmbedWindow = EmbedWindowCheckBox.IsChecked ?? true,
+            Fullscreen = FullscreenCheckBox.IsChecked ?? true,
+            ShowConsole = ShowConsoleCheckBox.IsChecked ?? false,
+            Patches = new PatchFlags {
+                BootToMultiplayer = BootToMultiplayerCheckBox.IsChecked ?? true,
+                Widescreen = WidescreenCheckBox.IsChecked ?? true
+            }
+        };
+
+        Configuration.Save(config);
     }
 
     private void ValidateLaunchButton() {
         bool hasIso = !string.IsNullOrWhiteSpace(IsoPathTextBox.Text);
-        bool hasPcsx2 = !string.IsNullOrWhiteSpace(Pcsx2PathTextBox.Text);
-        LaunchButton.IsEnabled = hasIso && hasPcsx2;
+        bool hasBios = !string.IsNullOrWhiteSpace(BiosPathTextBox.Text);
+        
+        LaunchButton.IsEnabled = hasIso && hasBios;
     }
 
     private void BrowseIso_Click(object sender, RoutedEventArgs e) {
         var dialog = new OpenFileDialog {
-            Title = "Select UYA ISO File",
-            Filter = "PS2 ISO Files (*.iso;*.bin;*.img)|*.iso;*.bin;*.img|All Files (*.*)|*.*",
-            CheckFileExists = true
+            Filter = "ISO Files (*.iso)|*.iso|All Files (*.*)|*.*",
+            Title = "Select UYA ISO File"
         };
 
         if (dialog.ShowDialog() == true) {
@@ -85,120 +111,74 @@ public partial class MainWindow : Window {
         }
     }
 
-    private void BrowsePcsx2_Click(object sender, RoutedEventArgs e) {
+    private void BrowseBios_Click(object sender, RoutedEventArgs e) {
         var dialog = new OpenFileDialog {
-            Title = "Select PCSX2 Executable",
-            Filter = "PCSX2 Executable (pcsx2.exe;pcsx2-qt.exe)|pcsx2.exe;pcsx2-qt.exe|All Executables (*.exe)|*.exe",
-            CheckFileExists = true
+            Filter = "BIOS Files (*.bin)|*.bin|All Files (*.*)|*.*",
+            Title = "Select PS2 BIOS File"
         };
-        if (dialog.ShowDialog() == true) {
-            Pcsx2PathTextBox.Text = dialog.FileName;
-        }
-    }
 
-    private void CheckUpdates_Click(object sender, RoutedEventArgs e) {
-        _ = Updater.CheckAndUpdateAsync(false);
+        if (dialog.ShowDialog() == true) {
+            BiosPathTextBox.Text = dialog.FileName;
+        }
     }
 
     private void Save_Click(object sender, RoutedEventArgs e) {
         SaveConfiguration();
-        _cancelled = false;
+        
+        if (_isHotkeyMode) {
+            // In hotkey mode, apply patches after saving
+            try {
+                var config = Configuration.Load();
+                PatchManager.ApplyPatches(config);
+            } catch (Exception ex) {
+                MessageBox.Show(
+                    $"Error applying patches:\n\n{ex.Message}",
+                    "Patch Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        
         Close();
     }
 
     private void SaveAndRelaunch_Click(object sender, RoutedEventArgs e) {
         SaveConfiguration();
-        _cancelled = false;
+        
+        // Get path to current executable
+        var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;
 
-        // Relaunch the application
-        var exePath = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
-        Process.Start(new ProcessStartInfo {
+        // Launch new instance
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
             FileName = exePath,
             UseShellExecute = true
         });
 
-        // Close current application
+        // Exit current instance
         Application.Current.Shutdown();
     }
 
     private void Launch_Click(object sender, RoutedEventArgs e) {
-        if (!ValidateAndSave())
-            return;
-
+        // Save and relaunch for first run
         SaveAndRelaunch_Click(sender, e);
     }
 
-    private bool ValidateAndSave() {
-        if (string.IsNullOrWhiteSpace(IsoPathTextBox.Text) || string.IsNullOrWhiteSpace(Pcsx2PathTextBox.Text)) {
-            MessageBox.Show(
-                "Please select both ISO and PCSX2 paths.",
-                "Validation Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (!File.Exists(IsoPathTextBox.Text)) {
-            MessageBox.Show(
-                "The selected ISO file does not exist.",
-                "File Not Found",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (!File.Exists(Pcsx2PathTextBox.Text)) {
-            MessageBox.Show(
-                "The selected PCSX2 executable does not exist.",
-                "File Not Found",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return false;
-        }
-
-        SaveConfiguration();
-        return true;
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e) {
+        await Updater.CheckAndUpdateAsync(false);
     }
 
-    private void SaveConfiguration() {
-        var config = new ConfigurationData {
-            IsoPath = IsoPathTextBox.Text,
-            Pcsx2Path = Pcsx2PathTextBox.Text,
-            Region = (RegionComboBox.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "NTSC",
-            AutoUpdate = AutoUpdateCheckBox.IsChecked ?? true,
-            Fullscreen = FullscreenCheckBox.IsChecked ?? true,
-            EmbedWindow = EmbedWindowCheckBox.IsChecked ?? true,
-            ShowConsole = ShowConsoleCheckBox.IsChecked ?? false,
-            Patches = new PatchFlags {
-                BootToMultiplayer = BootToMultiplayerCheckBox.IsChecked ?? true,
-                Widescreen = WidescreenCheckBox.IsChecked ?? true,
-            }
-        };
-
-        Configuration.Save(config);
+    private void Cancel_Click(object sender, RoutedEventArgs e) {
+        _cancelled = true;
+        DialogResult = false;
+        Close();
     }
 
-    protected override void OnClosing(CancelEventArgs e) {
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e) {
         base.OnClosing(e);
         
-        if (!_cancelled && !_isHotkeyMode) {
-            // Check if configuration is complete on close
-            if (string.IsNullOrWhiteSpace(IsoPathTextBox.Text) || string.IsNullOrWhiteSpace(Pcsx2PathTextBox.Text)) {
-                var result = MessageBox.Show(
-                    "Configuration is incomplete. Are you sure you want to exit?",
-                    "Exit Confirmation",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.No) {
-                    e.Cancel = true;
-                    return;
-                }
-                
-                _cancelled = true;
-            }
+        // If in first-run mode and window is closing without saving, mark as cancelled
+        if (!_isHotkeyMode && DialogResult != true && !_cancelled) {
+            _cancelled = true;
         }
     }
-
-    public bool WasCancelled => _cancelled;
 }

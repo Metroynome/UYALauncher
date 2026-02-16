@@ -64,12 +64,7 @@ public partial class App : Application {
         MainWindow = launcherWindow;
 
         if (config.EmbedWindow) {
-            // Show the window in hidden/minimized state - OnLoaded will determine final visibility
-            launcherWindow.Visibility = Visibility.Hidden;
             launcherWindow.Show();
-            if (config.ShowConsole) {
-                Console.WriteLine("Embed mode - window created hidden, visibility will be determined after embedding");
-            }
         } else {
             // Non-embed mode: create hidden window for hotkeys
             launcherWindow.Visibility = Visibility.Hidden;

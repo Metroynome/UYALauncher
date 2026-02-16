@@ -12,7 +12,7 @@ using File = System.IO.File;
 namespace UYALauncherSetup;
 
 public partial class MainWindow : Window {
-    private string _installPath;
+    private string _installPath = "";
 
     // P/Invoke for creating shortcuts
     [DllImport("shell32.dll", CharSet = CharSet.Auto)]

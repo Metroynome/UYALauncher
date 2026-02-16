@@ -16,18 +16,6 @@ public partial class App : Application {
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        // Handle self-update command line argument
-        if (e.Args.Length > 0 && e.Args[0] == "--self-update") {
-            if (e.Args.Length >= 2) {
-                var args = e.Args[1].Split('|');
-                var newExePath = args[0];
-                var remoteVersion = args.Length > 1 ? args[1] : "0.0.0";
-                Updater.RunSelfUpdate(newExePath, remoteVersion);
-            }
-            Shutdown();
-            return;
-        }
-
         // Check if this is first run or config is incomplete
         bool firstRun = Configuration.IsFirstRun();
         bool configIncomplete = !firstRun && !Configuration.IsConfigComplete();

@@ -117,3 +117,4 @@ UYALauncherUpdater.exe
 *.rar
 *.7z
 !installer/data/**/*.zip
+.editorconfig

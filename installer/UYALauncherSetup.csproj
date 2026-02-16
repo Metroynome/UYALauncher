@@ -1,31 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationIcon>installer.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
-    <AssemblyName>UYALauncherSetup</AssemblyName>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ApplicationIcon>icon.ico</ApplicationIcon>
+		<Version>1.0.0</Version>
+		<AssemblyName>UYALauncherSetup</AssemblyName>
+		<PublishSingleFile>true</PublishSingleFile>
+		<SelfContained>true</SelfContained>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <!-- Embed the launcher executable as a resource -->
-    <EmbeddedResource Include="..\launcher\bin\Release\net8.0-windows\win-x64\publish\UYALauncher.exe">
-      <LogicalName>UYALauncher.exe</LogicalName>
-    </EmbeddedResource>
-    
-    <!-- Embed data folder from installer directory -->
-    <EmbeddedResource Include="data\**\*" Exclude="data\config.json">
-      <LogicalName>data/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Embed the launcher executable as a resource -->
+		<EmbeddedResource Include="..\launcher\bin\Release\net8.0-windows\win-x64\publish\UYALauncher.exe">
+			<LogicalName>UYALauncher.exe</LogicalName>
+		</EmbeddedResource>
+		
+		<!-- Embed data folder from installer directory -->
+		<EmbeddedResource Include="data\**\*" Exclude="data\config.json">
+			<LogicalName>data/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+		</EmbeddedResource>
+	</ItemGroup>
 
 </Project>

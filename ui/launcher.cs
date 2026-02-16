@@ -228,9 +228,6 @@ public class LauncherWindow : Window {
             } else {
                 Console.WriteLine("Embedding successful!");
                 
-                // Start monitoring PCSX2 window size changes
-                PCSX2Manager.StartSizeMonitoring(this);
-                
                 // Only show window if not fullscreen
                 bool isFullscreen = PCSX2Manager.IsPCSX2Fullscreen();
                 
@@ -242,6 +239,9 @@ public class LauncherWindow : Window {
                 } else {
                     Console.WriteLine("PCSX2 is fullscreen - keeping parent window hidden");
                 }
+                
+                // Start monitoring PCSX2 window size changes AFTER initial visibility is set
+                PCSX2Manager.StartSizeMonitoring(this);
             }
         } else {
             Console.WriteLine("Embed mode disabled, PCSX2 will run in separate window");
@@ -268,6 +268,10 @@ public class LauncherWindow : Window {
             UnregisterHotKey(handle, HOTKEY_CTRL_F11);
             Console.WriteLine("Hotkeys unregistered");
         }
+        
+        // Terminate PCSX2 and exit
         PCSX2Manager.Terminate();
+        Console.WriteLine("Exiting application...");
+        Environment.Exit(0);
     }
 }

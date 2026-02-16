@@ -112,10 +112,10 @@ public static class PCSX2Manager {
                 return false;
             }
 
-            var arguments = "-portable -fastboot";
+            var arguments = "";
 
-            // Add batch mode (exits after game closes)
-            arguments += " -batch";
+            // Add portable mode flag
+            arguments += " -portable";
 
             // Set up PCSX2 portable configuration
             try {
@@ -184,6 +184,10 @@ public static class PCSX2Manager {
             } catch (Exception ex) {
                 Console.WriteLine($"Warning: Could not set up PCSX2 config: {ex.Message}");
             }
+
+            // Faster boot for multiplayer
+            if (config.Patches.BootToMultiplayer)
+                arguments += " -fastboot";
 
             // Fullscreen mode
             if (config.Fullscreen)
@@ -402,7 +406,7 @@ public static class PCSX2Manager {
                         Application.Current.Dispatcher.Invoke(() => {
                             if (showConsole)
                                 Console.WriteLine("Shutting down application...");
-                            Application.Current.Shutdown();
+                            Environment.Exit(0); // Force quit everything including console
                         });
 
                         break;
@@ -445,6 +449,13 @@ public static class PCSX2Manager {
     public static void ResizeEmbeddedWindow(double width, double height) {
         if (_pcsx2Window != IntPtr.Zero) {
             SetWindowPos(_pcsx2Window, IntPtr.Zero, 0, 0, (int)width, (int)height, SWP_NOZORDER);
+        }
+    }
+
+    public static void FocusEmbeddedWindow() {
+        if (_pcsx2Window != IntPtr.Zero) {
+            SetForegroundWindow(_pcsx2Window);
+            Console.WriteLine("Focused embedded PCSX2 window");
         }
     }
 
@@ -496,6 +507,13 @@ public static class PCSX2Manager {
         _sizeMonitorCts = new CancellationTokenSource();
         var token = _sizeMonitorCts.Token;
 
+        // Initialize last size to current size to prevent immediate trigger
+        if (GetWindowRect(_pcsx2Window, out RECT rect)) {
+            _lastWidth = rect.Right - rect.Left;
+            _lastHeight = rect.Bottom - rect.Top;
+            Console.WriteLine($"Size monitor initialized with: {_lastWidth}x{_lastHeight}");
+        }
+
         Task.Run(async () => {
             Console.WriteLine("PCSX2 window size monitor started.");
 
@@ -526,10 +544,11 @@ public static class PCSX2Manager {
                                 // Show or hide based on fullscreen state
                                 if (isFullscreen) {
                                     Console.WriteLine("PCSX2 entered fullscreen - hiding parent window");
-                                    parentWindow.Visibility = Visibility.Hidden;
+                                    parentWindow.WindowState = WindowState.Minimized;
+                                    parentWindow.Hide();
                                 } else {
                                     Console.WriteLine("PCSX2 exited fullscreen - showing parent window");
-                                    parentWindow.Visibility = Visibility.Visible;
+                                    parentWindow.Show();
                                     parentWindow.WindowState = WindowState.Normal;
                                 }
                             });

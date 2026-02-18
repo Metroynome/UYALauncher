@@ -1,40 +1,120 @@
-# Build directories
-build/
-cmake-build-*/
-QUICKSTART.md
+# UYA Launcher .gitignore
 
-# Executables
-*.exe
-*.out
-
-# Compiled Object files
-*.o
-*.obj
-
-# CMake
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-
-# Visual Studio
-.vs/
-*.vcxproj
-*.vcxproj.filters
-*.vcxproj.user
-*.sln
-
-# PCSX2 installation (user should add their own)
-emulator/
-
-# Logs and temporary files
-*.log
-*.tmp
-
-# User configuration
-config.ini
-
+## Build outputs
 bin/
 obj/
-bin/*
-obj/*
+release/
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+
+## .NET publish output
+publish/
+
+## User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Mono Auto Generated Files
+mono_crash.*
+
+## Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+## Folder config file
+Desktop.ini
+
+## Recycle Bin
+$RECYCLE.BIN/
+
+## VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+## NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+## NCrunch
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+## ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## TeamCity
+_TeamCity*
+
+## DotCover
+*.dotCover
+
+## Installer data folder (PCSX2 - too large for git)
+installer/data/emulator/
+installer/data/defaults/PCSX2.ini
+
+## Keep empty data structure but ignore contents
+installer/data/emulator/*
+!installer/data/emulator/.gitkeep
+installer/data/emulator/patches/*
+!installer/data/emulator/patches/.gitkeep
+
+## Updater staging (per-release files, not committed)
+updater/updates/
+
+## Local config files (user-specific)
+**/config.json
+
+## Temporary files
+*.tmp
+*.temp
+*.log
+
+## Application specific
+*.exe.new
+*.exe.old
+UYALauncherUpdater.exe
+
+## Archives
+*.zip
+*.rar
+*.7z
+!installer/data/**/*.zip
+.editorconfig

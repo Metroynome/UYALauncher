@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AssemblyName>UYALauncherUpdater</AssemblyName>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embed files to update - these will change per release -->
+    <!-- Example: Embed new launcher -->
+    <EmbeddedResource Include="..\launcher\bin\Release\net8.0-windows\win-x64\publish\UYALauncher.exe">
+      <LogicalName>UYALauncher.exe</LogicalName>
+    </EmbeddedResource>
+    
+    <!-- Example: Embed updated data files -->
+    <EmbeddedResource Include="updates\data\**\*">
+      <LogicalName>data/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

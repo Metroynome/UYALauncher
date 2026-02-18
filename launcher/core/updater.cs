@@ -13,17 +13,31 @@ public static class Updater {
     private const string GitHubRepo = "UYALauncher";
     
     // Get version from assembly instead of hardcoding
-    private static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.8.2";
+    private static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly()
+        .GetName().Version?.ToString(3) ?? "3.0.0";
 
     public static async Task CheckAndUpdateAsync(bool silent) {
         try {
-            var (updateAvailable, downloadUrl, remoteVersion) = await CheckForUpdateAsync();
+            var (updateAvailable, updaterUrl, remoteVersion) = await CheckForUpdateAsync();
 
             if (!updateAvailable) {
                 if (!silent) {
                     MessageBox.Show(
                         $"You are running the latest version ({CurrentVersion}).",
                         "Up to Date",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                return;
+            }
+
+            // If newer version exists but no updater, just notify
+            if (string.IsNullOrEmpty(updaterUrl)) {
+                if (!silent) {
+                    MessageBox.Show(
+                        $"A new version (v{remoteVersion}) is available, but no updater is included.\n\n" +
+                        $"This may be a minor update. Visit GitHub to learn more.",
+                        "Update Available",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
                 }
@@ -46,15 +60,14 @@ public static class Updater {
                     return;
             }
 
-            // Download update
-            var tempPath = Path.GetTempPath();
-            var newExePath = Path.Combine(tempPath, "UYALauncher_new.exe");
+            // Download updater
+            var updaterPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "UYALauncherUpdater.exe");
 
             var progressWindow = new UpdateProgressWindow();
             progressWindow.Show();
 
             try {
-                await DownloadUpdateAsync(downloadUrl, newExePath, progressWindow);
+                await DownloadUpdateAsync(updaterUrl, updaterPath, progressWindow);
             } catch (Exception ex) {
                 progressWindow.Close();
                 MessageBox.Show(
@@ -70,14 +83,11 @@ public static class Updater {
             // Terminate PCSX2
             PCSX2Manager.Terminate();
 
-            // Launch self-update process
-            var currentExe = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var args = $"--self-update \"{newExePath}|{remoteVersion}\"";
-
+            // Launch updater
             Process.Start(new ProcessStartInfo {
-                FileName = currentExe,
-                Arguments = args,
-                UseShellExecute = true
+                FileName = updaterPath,
+                UseShellExecute = true,
+                WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
             });
 
             // Exit current process
@@ -93,7 +103,7 @@ public static class Updater {
         }
     }
 
-    private static async Task<(bool available, string downloadUrl, string version)> CheckForUpdateAsync() {
+    private static async Task<(bool available, string updaterUrl, string version)> CheckForUpdateAsync() {
         using var client = new HttpClient();
         client.DefaultRequestHeaders.Add("User-Agent", "UYALauncher");
 
@@ -110,24 +120,20 @@ public static class Updater {
         if (!IsNewerVersion(CurrentVersion, tag))
             return (false, string.Empty, tag);
 
-        // Get download URL for exe asset
-        var downloadUrl = string.Empty;
+        // Look for UYALauncherUpdater.exe in assets
+        var updaterUrl = string.Empty;
         if (root.TryGetProperty("assets", out var assets)) {
             foreach (var asset in assets.EnumerateArray()) {
                 var name = asset.GetProperty("name").GetString();
-                if (name?.EndsWith(".exe") == true) {
-                    downloadUrl = asset.GetProperty("browser_download_url").GetString() ?? string.Empty;
+                if (name == "UYALauncherUpdater.exe") {
+                    updaterUrl = asset.GetProperty("browser_download_url").GetString() ?? string.Empty;
                     break;
                 }
             }
         }
 
-        if (string.IsNullOrEmpty(downloadUrl)) {
-            // Fallback to browser_download_url from release
-            downloadUrl = root.GetProperty("browser_download_url").GetString() ?? string.Empty;
-        }
-
-        return (true, downloadUrl, tag);
+        // Return true for update available, but empty URL if no updater found
+        return (true, updaterUrl, tag);
     }
 
     private static async Task DownloadUpdateAsync(string url, string outputPath, UpdateProgressWindow progressWindow) {
@@ -161,57 +167,6 @@ public static class Updater {
                 });
             }
         }
-    }
-
-    public static void RunSelfUpdate(string newExePath, string version) {
-        try {
-            // Save version
-            Configuration.SetInstalledVersion(version);
-
-            var currentExe = Environment.ProcessPath ?? 
-                           System.Reflection.Assembly.GetExecutingAssembly().Location;
-
-            // Create a batch file to perform the update
-            var batchPath = Path.Combine(Path.GetTempPath(), "UYALauncher_Update.bat");
-            var processId = Process.GetCurrentProcess().Id;
-            
-            var batchContent = $@"@echo off
-echo Waiting for UYA Launcher to close...
-:wait
-tasklist /FI ""PID eq {processId}"" 2>NUL | find ""{processId}"" >NUL
-if not errorlevel 1 (
-    timeout /t 1 /nobreak >NUL
-    goto wait
-)
-echo Updating...
-timeout /t 1 /nobreak >NUL
-del /f /q ""{currentExe}"" 2>NUL
-move /y ""{newExePath}"" ""{currentExe}""
-echo Launching updated version...
-start """" ""{currentExe}""
-del ""%~f0""
-";
-            
-            File.WriteAllText(batchPath, batchContent);
-
-            // Launch the batch file
-            Process.Start(new ProcessStartInfo {
-                FileName = batchPath,
-                UseShellExecute = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            });
-            
-        } catch (Exception ex) {
-            MessageBox.Show(
-                $"Self-update failed:\n\n{ex.Message}",
-                "Update Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-        
-        // Exit the application
-        Environment.Exit(0);
     }
 
     private static bool IsNewerVersion(string current, string remote) {

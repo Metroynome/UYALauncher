@@ -75,9 +75,14 @@ public static class PCSX2Manager {
         try {
             Console.WriteLine("=== PCSX2 Launch Debug ===");
             Console.WriteLine($"ISO Path: {config.IsoPath}");
-            Console.WriteLine($"PCSX2 Path: {config.Pcsx2Path}");
+            Console.WriteLine($"BIOS Path: {config.BiosPath}");
+            
+            // Use hardcoded PCSX2 path from data/emulator folder
+            var pcsx2Path = Configuration.GetPcsx2Path();
+            Console.WriteLine($"PCSX2 Path: {pcsx2Path}");
             Console.WriteLine($"ISO Exists: {System.IO.File.Exists(config.IsoPath)}");
-            Console.WriteLine($"PCSX2 Exists: {System.IO.File.Exists(config.Pcsx2Path)}");
+            Console.WriteLine($"PCSX2 Exists: {System.IO.File.Exists(pcsx2Path)}");
+            Console.WriteLine($"BIOS Exists: {System.IO.File.Exists(config.BiosPath)}");
 
             // Check if files exist
             if (!System.IO.File.Exists(config.IsoPath)) {
@@ -89,9 +94,18 @@ public static class PCSX2Manager {
                 return false;
             }
 
-            if (!System.IO.File.Exists(config.Pcsx2Path)) {
+            if (!System.IO.File.Exists(pcsx2Path)) {
                 MessageBox.Show(
-                    $"PCSX2 executable not found:\n{config.Pcsx2Path}",
+                    $"PCSX2 executable not found:\n{pcsx2Path}\n\nMake sure the data/emulator folder exists with pcsx2-qt.exe",
+                    "Launch Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return false;
+            }
+            
+            if (!System.IO.File.Exists(config.BiosPath)) {
+                MessageBox.Show(
+                    $"BIOS file not found:\n{config.BiosPath}",
                     "Launch Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
@@ -99,6 +113,77 @@ public static class PCSX2Manager {
             }
 
             var arguments = "";
+
+            // Add portable mode flag
+            arguments += " -portable";
+
+            // Set up PCSX2 portable configuration
+            try {
+                var pcsx2Dir = System.IO.Path.GetDirectoryName(pcsx2Path);
+                if (pcsx2Dir == null) {
+                    Console.WriteLine("Warning: Could not get PCSX2 directory");
+                    return true; // Continue anyway, PCSX2 might still work
+                }
+                
+                var iniDir = System.IO.Path.Combine(pcsx2Dir, "inis");
+                var iniPath = System.IO.Path.Combine(iniDir, "PCSX2.ini");
+                
+                // Parse BIOS path into folder and filename
+                var biosFolder = System.IO.Path.GetDirectoryName(config.BiosPath) ?? "";
+                var biosFilename = System.IO.Path.GetFileName(config.BiosPath);
+                
+                Console.WriteLine($"Parsed BIOS - Folder: {biosFolder}, File: {biosFilename}");
+                
+                // Create necessary directories
+                System.IO.Directory.CreateDirectory(iniDir);
+                
+                // Create or update PCSX2.ini
+                if (!System.IO.File.Exists(iniPath)) {
+                    // Create default config
+                    var defaultConfig = System.IO.Path.Combine(Configuration.GetAppDirectory(), "data", "defaults", "PCSX2.ini");
+                    if (System.IO.File.Exists(defaultConfig)) {
+                        System.IO.File.Copy(defaultConfig, iniPath, false);
+                        Console.WriteLine("Created default PCSX2.ini");
+                    }
+                }
+                
+                // Update config with user's BIOS folder and filename
+                if (System.IO.File.Exists(iniPath)) {
+                    var lines = System.IO.File.ReadAllLines(iniPath);
+                    bool inFolders = false;
+                    bool inFilenames = false;
+                    
+                    for (int i = 0; i < lines.Length; i++) {
+                        // Update [Folders] section - BIOS folder path
+                        if (lines[i].Trim() == "[Folders]") {
+                            inFolders = true;
+                            inFilenames = false;
+                        }
+                        else if (inFolders && lines[i].StartsWith("Bios")) {
+                            lines[i] = $"Bios = {biosFolder}";
+                            Console.WriteLine($"Set BIOS folder to: {biosFolder}");
+                            inFolders = false;
+                        }
+                        // Update [Filenames] section - BIOS filename
+                        else if (lines[i].Trim() == "[Filenames]") {
+                            inFilenames = true;
+                            inFolders = false;
+                        }
+                        else if (inFilenames && lines[i].StartsWith("BIOS")) {
+                            lines[i] = $"BIOS = {biosFilename}";
+                            Console.WriteLine($"Set BIOS file to: {biosFilename}");
+                            break;
+                        }
+                        else if (lines[i].StartsWith("[")) {
+                            inFolders = false;
+                            inFilenames = false;
+                        }
+                    }
+                    System.IO.File.WriteAllLines(iniPath, lines);
+                }
+            } catch (Exception ex) {
+                Console.WriteLine($"Warning: Could not set up PCSX2 config: {ex.Message}");
+            }
 
             // Faster boot for multiplayer
             if (config.Patches.BootToMultiplayer)
@@ -111,14 +196,18 @@ public static class PCSX2Manager {
             // Add ISO path
             arguments += $" -- \"{config.IsoPath}\"";
 
-            Console.WriteLine($"Command: \"{config.Pcsx2Path}\" {arguments}");
+            Console.WriteLine("=== PCSX2 Launch Command ===");
+            Console.WriteLine($"Executable: {pcsx2Path}");
+            Console.WriteLine($"Arguments: {arguments}");
+            Console.WriteLine($"Full Command: \"{pcsx2Path}\" {arguments}");
+            Console.WriteLine("============================");
 
             var startInfo = new ProcessStartInfo {
-                FileName = config.Pcsx2Path,
+                FileName = pcsx2Path,
                 Arguments = arguments,
                 UseShellExecute = true,  // Changed to true for better compatibility
                 CreateNoWindow = false,
-                WorkingDirectory = System.IO.Path.GetDirectoryName(config.Pcsx2Path)
+                WorkingDirectory = System.IO.Path.GetDirectoryName(pcsx2Path)
             };
 
             Console.WriteLine("Starting process...");
@@ -317,7 +406,7 @@ public static class PCSX2Manager {
                         Application.Current.Dispatcher.Invoke(() => {
                             if (showConsole)
                                 Console.WriteLine("Shutting down application...");
-                            Application.Current.Shutdown();
+                            Environment.Exit(0); // Force quit everything including console
                         });
 
                         break;
@@ -360,6 +449,13 @@ public static class PCSX2Manager {
     public static void ResizeEmbeddedWindow(double width, double height) {
         if (_pcsx2Window != IntPtr.Zero) {
             SetWindowPos(_pcsx2Window, IntPtr.Zero, 0, 0, (int)width, (int)height, SWP_NOZORDER);
+        }
+    }
+
+    public static void FocusEmbeddedWindow() {
+        if (_pcsx2Window != IntPtr.Zero) {
+            SetForegroundWindow(_pcsx2Window);
+            Console.WriteLine("Focused embedded PCSX2 window");
         }
     }
 
@@ -410,6 +506,13 @@ public static class PCSX2Manager {
     public static void StartSizeMonitoring(Window parentWindow) {
         _sizeMonitorCts = new CancellationTokenSource();
         var token = _sizeMonitorCts.Token;
+
+        // Initialize last size to current size to prevent immediate trigger
+        if (GetWindowRect(_pcsx2Window, out RECT rect)) {
+            _lastWidth = rect.Right - rect.Left;
+            _lastHeight = rect.Bottom - rect.Top;
+            Console.WriteLine($"Size monitor initialized with: {_lastWidth}x{_lastHeight}");
+        }
 
         Task.Run(async () => {
             Console.WriteLine("PCSX2 window size monitor started.");

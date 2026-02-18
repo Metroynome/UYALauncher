@@ -13,18 +13,8 @@ public partial class App : Application {
 
     protected override void OnStartup(StartupEventArgs e) {
         base.OnStartup(e);
-        
-        // Handle self-update command line argument
-        if (e.Args.Length > 0 && e.Args[0] == "--self-update") {
-            if (e.Args.Length >= 2) {
-                var args = e.Args[1].Split('|');
-                var newExePath = args[0];
-                var remoteVersion = args.Length > 1 ? args[1] : "0.0.0";
-                Updater.RunSelfUpdate(newExePath, remoteVersion);
-            }
-            Shutdown();
-            return;
-        }
+
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         // Check if this is first run or config is incomplete
         bool firstRun = Configuration.IsFirstRun();
@@ -32,7 +22,7 @@ public partial class App : Application {
 
         // Show setup dialog if needed
         if (firstRun || configIncomplete) {
-            var setupWindow = new MainWindow(hotkeyMode: false);
+            var setupWindow = new SettingsWindow(hotkeyMode: false);
             var result = setupWindow.ShowDialog();
 
             if (setupWindow.WasCancelled || result != true) {
@@ -56,6 +46,7 @@ public partial class App : Application {
         if (config.AutoUpdate) {
             _ = Updater.CheckAndUpdateAsync(true);
         }
+
         // Create and show launcher window
         var launcherWindow = new LauncherWindow(config);
         MainWindow = launcherWindow;
@@ -63,7 +54,7 @@ public partial class App : Application {
         if (config.EmbedWindow) {
             launcherWindow.Show();
         } else {
-            // launcherWindow.WindowState = WindowState.Minimized;
+            // Non-embed mode: create hidden window for hotkeys
             launcherWindow.Visibility = Visibility.Hidden;
             launcherWindow.Show();
         }

@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Download PCSX2 Data Bundle
+      shell: pwsh
+      run: |
+        $dataUrl = "https://github.com/${{ github.repository }}/releases/download/data-v1.0.0/UYALauncherData.zip"
+        Write-Host "Downloading PCSX2 data from: $dataUrl"
+        Invoke-WebRequest -Uri $dataUrl -OutFile UYALauncherData.zip
+        Write-Host "Extracting to installer/data/"
+        Expand-Archive -Path UYALauncherData.zip -DestinationPath installer/data -Force
+        Remove-Item UYALauncherData.zip
+
+    - name: Build Launcher
+      shell: pwsh
+      run: |
+        cd launcher
+        dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+        cd ..
+
+    - name: Build Installer
+      shell: pwsh
+      run: |
+        cd installer
+        dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+        cd ..
+
+    - name: Upload Installer to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./installer/bin/Release/net8.0-windows/win-x64/publish/UYALauncherSetup.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

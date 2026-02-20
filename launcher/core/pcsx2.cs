@@ -286,6 +286,9 @@ public static class PCSX2Manager {
             if (showConsole)
                 Console.WriteLine("Embedding PCSX2 window...");
 
+            // Wait for PCSX2 to fully initialize its window before snapshotting size
+            await Task.Delay(2000);
+
             // Get PCSX2 window size
             if (GetWindowRect(_pcsx2Window, out RECT pcsx2Rect)) {
                 int pcsx2Width = pcsx2Rect.Right - pcsx2Rect.Left;
@@ -346,8 +349,8 @@ public static class PCSX2Manager {
             // Show PCSX2 window (now embedded and properly sized)
             ShowWindow(_pcsx2Window, SW_SHOW);
             
-            // Focus the PCSX2 window to bring it to front (especially important for fullscreen)
-            SetForegroundWindow(_pcsx2Window);
+            // Focus the PARENT window — SetForegroundWindow on a child HWND is a no-op
+            SetForegroundWindow(parentHandle);
 
             if (showConsole)
                 Console.WriteLine("PCSX2 window embedded and shown successfully!");
@@ -386,6 +389,52 @@ public static class PCSX2Manager {
         }, IntPtr.Zero);
 
         return foundWindow;
+    }
+
+    /// <summary>
+    /// Finds the fullscreen top-level window belonging to PCSX2.
+    /// PCSX2 Qt creates a separate borderless popup for exclusive fullscreen,
+    /// distinct from the embedded child window.
+    /// </summary>
+    private static IntPtr FindFullscreenTopLevelWindow() {
+        if (_pcsx2Process == null) return IntPtr.Zero;
+
+        int screenWidth  = (int)SystemParameters.PrimaryScreenWidth;
+        int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+        var processId = (uint)_pcsx2Process.Id;
+        IntPtr found = IntPtr.Zero;
+
+        EnumWindows((hWnd, lParam) => {
+            GetWindowThreadProcessId(hWnd, out uint windowProcessId);
+            if (windowProcessId != processId) return true;
+            if (!IsWindowVisible(hWnd)) return true;
+
+            // Must be a top-level (not child) window
+            int style = GetWindowLong(hWnd, GWL_STYLE);
+            if ((style & WS_CHILD) != 0) return true;
+
+            if (GetWindowRect(hWnd, out RECT rect)) {
+                int w = rect.Right  - rect.Left;
+                int h = rect.Bottom - rect.Top;
+                if (w >= screenWidth - 50 && h >= screenHeight - 50) {
+                    found = hWnd;
+                    return false; // stop enumerating
+                }
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return found;
+    }
+
+    /// <summary>
+    /// Checks whether PCSX2 currently has a fullscreen top-level window.
+    /// Uses top-level window enumeration rather than the embedded child rect,
+    /// since the child rect is parent-relative after SetParent and cannot be
+    /// compared to screen dimensions.
+    /// </summary>
+    private static bool HasFullscreenTopLevelWindow() {
+        return FindFullscreenTopLevelWindow() != IntPtr.Zero;
     }
 
     public static void StartMonitoring(Window? parentWindow, bool showConsole) {
@@ -441,7 +490,7 @@ public static class PCSX2Manager {
             _pcsx2Process?.Dispose();
             _pcsx2Process = null;
             _pcsx2Window = IntPtr.Zero;
-        }catch {
+        } catch {
             // Ignore cleanup errors
         }
     }
@@ -464,98 +513,67 @@ public static class PCSX2Manager {
             Console.WriteLine("Cannot focus PCSX2 - process is null");
             return;
         }
-        
-        // Try multiple times to find and focus the window
+
         for (int i = 0; i < 10; i++) {
-            IntPtr pcsx2Window = FindPcsx2Window();
-            if (pcsx2Window != IntPtr.Zero) {
-                // Try to bring to foreground
-                bool success = SetForegroundWindow(pcsx2Window);
-                if (success) {
-                    Console.WriteLine("PCSX2 window focused successfully");
-                    return;
-                } else {
-                    Console.WriteLine($"SetForegroundWindow failed, attempt {i + 1}/10");
-                }
-            } else {
-                Console.WriteLine($"Could not find PCSX2 window yet, attempt {i + 1}/10");
+            // Prefer the fullscreen top-level if it exists, fall back to any window
+            IntPtr target = FindFullscreenTopLevelWindow();
+            if (target == IntPtr.Zero)
+                target = FindPcsx2Window();
+
+            if (target != IntPtr.Zero) {
+                ShowWindow(target, SW_SHOW);
+                SetForegroundWindow(target);
+                Console.WriteLine($"PCSX2 window focused (attempt {i + 1})");
+                return;
             }
-            
+
+            Console.WriteLine($"Could not find PCSX2 window yet, attempt {i + 1}/10");
             await Task.Delay(500);
         }
-        
+
         Console.WriteLine("Failed to focus PCSX2 window after 10 attempts");
     }
 
     public static bool IsPCSX2Fullscreen() {
-        if (_pcsx2Window == IntPtr.Zero)
-            return false;
-            
-        if (GetWindowRect(_pcsx2Window, out RECT rect)) {
-            int width = rect.Right - rect.Left;
-            int height = rect.Bottom - rect.Top;
-            int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-            int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
-            
-            return (width >= screenWidth - 50 && height >= screenHeight - 50);
-        }
-        
-        return false;
+        return HasFullscreenTopLevelWindow();
     }
 
     public static void StartSizeMonitoring(Window parentWindow) {
         _sizeMonitorCts = new CancellationTokenSource();
         var token = _sizeMonitorCts.Token;
 
-        // Initialize last size to current size to prevent immediate trigger
-        if (GetWindowRect(_pcsx2Window, out RECT rect)) {
-            _lastWidth = rect.Right - rect.Left;
-            _lastHeight = rect.Bottom - rect.Top;
-            Console.WriteLine($"Size monitor initialized with: {_lastWidth}x{_lastHeight}");
-        }
-
         Task.Run(async () => {
             Console.WriteLine("PCSX2 window size monitor started.");
+            bool? lastFullscreenState = null; // null = unknown, forces first-tick evaluation
 
             try {
-                while (!token.IsCancellationRequested && _pcsx2Window != IntPtr.Zero) {
-                    if (GetWindowRect(_pcsx2Window, out RECT rect)) {
-                        int width = rect.Right - rect.Left;
-                        int height = rect.Bottom - rect.Top;
+                while (!token.IsCancellationRequested && _pcsx2Process != null && !_pcsx2Process.HasExited) {
+                    await Task.Delay(500, token);
 
-                        // Check if size changed
-                        if (width != _lastWidth || height != _lastHeight) {
-                            _lastWidth = width;
-                            _lastHeight = height;
+                    // Detect fullscreen via top-level window enumeration.
+                    // We cannot use the embedded child's rect because after SetParent
+                    // it is parent-relative, not screen-relative.
+                    bool isFullscreen = HasFullscreenTopLevelWindow();
 
-                            Console.WriteLine($"PCSX2 window size changed to {width}x{height}");
+                    // Only act on state transitions
+                    if (isFullscreen == lastFullscreenState) continue;
+                    lastFullscreenState = isFullscreen;
 
-                            // Check if fullscreen
-                            int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-                            int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
-                            bool isFullscreen = (width >= screenWidth - 50 && height >= screenHeight - 50);
+                    Console.WriteLine($"PCSX2 fullscreen state changed: {isFullscreen}");
 
-                            // Update parent window on UI thread
-                            Application.Current.Dispatcher.Invoke(() => {
-                                parentWindow.Width = width;
-                                parentWindow.Height = height;
-                                Console.WriteLine($"Parent window resized to match PCSX2: {width}x{height}");
-                                
-                                // Show or hide based on fullscreen state
-                                if (isFullscreen) {
-                                    Console.WriteLine("PCSX2 entered fullscreen - hiding parent window");
-                                    parentWindow.WindowState = WindowState.Minimized;
-                                    parentWindow.Hide();
-                                } else {
-                                    Console.WriteLine("PCSX2 exited fullscreen - showing parent window");
-                                    parentWindow.Show();
-                                    parentWindow.WindowState = WindowState.Normal;
-                                }
-                            });
+                    Application.Current.Dispatcher.Invoke(() => {
+                        if (isFullscreen) {
+                            Console.WriteLine("PCSX2 entered fullscreen - hiding parent window");
+                            parentWindow.Hide();
+                            parentWindow.WindowState = WindowState.Minimized;
+                        } else {
+                            Console.WriteLine("PCSX2 exited fullscreen - showing parent window");
+                            parentWindow.Show();
+                            parentWindow.WindowState = WindowState.Normal;
+                            parentWindow.Activate();
+                            ResizeEmbeddedWindow(parentWindow.ActualWidth, parentWindow.ActualHeight);
                         }
-                    }
-
-                    await Task.Delay(500, token); // Check every 500ms
+                    });
                 }
             } catch (OperationCanceledException) {
                 // Normal cancellation

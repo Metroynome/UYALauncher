@@ -66,7 +66,7 @@ public class LauncherWindow : Window {
             bool f11Success = RegisterHotKey(handle, HOTKEY_F11, MOD_NONE, VK_F11);
             Console.WriteLine($"Registering F11 hotkey (ID: {HOTKEY_F11}): {f11Success}");
             if (!f11Success) {
-                int error = Marshal.GetLastWin32Error();
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
                 Console.WriteLine($"F11 registration failed with error code: {error}");
                 if (error == 1409)
                     Console.WriteLine("Error 1409 = Hot key is already registered");
@@ -76,7 +76,7 @@ public class LauncherWindow : Window {
             bool ctrlF11Success = RegisterHotKey(handle, HOTKEY_CTRL_F11, MOD_CONTROL, VK_F11);
             Console.WriteLine($"Registering Ctrl+F11 hotkey (ID: {HOTKEY_CTRL_F11}): {ctrlF11Success}");
             if (!ctrlF11Success) {
-                int error = Marshal.GetLastWin32Error();
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
                 Console.WriteLine($"Ctrl+F11 registration failed with error code: {error}");
                 if (error == 1409)
                     Console.WriteLine("Error 1409 = Hot key is already registered");
@@ -227,20 +227,31 @@ public class LauncherWindow : Window {
                 Activate();
             } else {
                 Console.WriteLine("Embedding successful!");
-                
-                // Only show window if not fullscreen
-                bool isFullscreen = PCSX2Manager.IsPCSX2Fullscreen();
-                
-                if (!isFullscreen) {
+
+                // Use the config flag to decide initial visibility.
+                // We cannot rely on IsPCSX2Fullscreen() here because after SetParent
+                // the child rect is parent-relative, not screen-relative.
+                if (!_config.Fullscreen) {
                     Console.WriteLine("PCSX2 is windowed - showing parent window");
                     Visibility = Visibility.Visible;
                     WindowState = WindowState.Normal;
                     Activate();
                 } else {
-                    Console.WriteLine("PCSX2 is fullscreen - keeping parent window hidden");
+                    Console.WriteLine("PCSX2 launched fullscreen - keeping parent window hidden");
+
+                    // Give PCSX2 time to fully enter fullscreen, then push focus to its
+                    // top-level fullscreen window (the parent can't receive SetForegroundWindow
+                    // while hidden, and the embedded child ignores it entirely).
+                    _ = Task.Delay(1500).ContinueWith(_ => {
+                        Application.Current.Dispatcher.Invoke(async () => {
+                            await PCSX2Manager.FocusPCSX2Window();
+                            Console.WriteLine("Pushed focus to PCSX2 fullscreen window after delay");
+                        });
+                    });
                 }
-                
-                // Start monitoring PCSX2 window size changes AFTER initial visibility is set
+
+                // Start monitoring PCSX2 window size/fullscreen changes AFTER
+                // initial visibility is decided.
                 PCSX2Manager.StartSizeMonitoring(this);
             }
         } else {

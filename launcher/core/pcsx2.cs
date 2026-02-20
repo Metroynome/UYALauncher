@@ -553,7 +553,8 @@ public static class PCSX2Manager {
                     // Detect fullscreen via top-level window enumeration.
                     // We cannot use the embedded child's rect because after SetParent
                     // it is parent-relative, not screen-relative.
-                    bool isFullscreen = HasFullscreenTopLevelWindow();
+                    IntPtr fullscreenHwnd = FindFullscreenTopLevelWindow();
+                    bool isFullscreen = fullscreenHwnd != IntPtr.Zero;
 
                     // Only act on state transitions
                     if (isFullscreen == lastFullscreenState) continue;
@@ -561,19 +562,27 @@ public static class PCSX2Manager {
 
                     Console.WriteLine($"PCSX2 fullscreen state changed: {isFullscreen}");
 
-                    Application.Current.Dispatcher.Invoke(() => {
-                        if (isFullscreen) {
-                            Console.WriteLine("PCSX2 entered fullscreen - hiding parent window");
+                    if (isFullscreen) {
+                        // Push focus to the fullscreen window as soon as we detect it —
+                        // this is the reliable moment rather than a blind fixed delay.
+                        Console.WriteLine("PCSX2 fullscreen window appeared - pushing focus");
+                        SetForegroundWindow(fullscreenHwnd);
+                        ShowWindow(fullscreenHwnd, SW_SHOW);
+
+                        Application.Current.Dispatcher.Invoke(() => {
+                            Console.WriteLine("Hiding parent window");
                             parentWindow.Hide();
                             parentWindow.WindowState = WindowState.Minimized;
-                        } else {
+                        });
+                    } else {
+                        Application.Current.Dispatcher.Invoke(() => {
                             Console.WriteLine("PCSX2 exited fullscreen - showing parent window");
                             parentWindow.Show();
                             parentWindow.WindowState = WindowState.Normal;
                             parentWindow.Activate();
                             ResizeEmbeddedWindow(parentWindow.ActualWidth, parentWindow.ActualHeight);
-                        }
-                    });
+                        });
+                    }
                 }
             } catch (OperationCanceledException) {
                 // Normal cancellation

@@ -238,16 +238,6 @@ public class LauncherWindow : Window {
                     Activate();
                 } else {
                     Console.WriteLine("PCSX2 launched fullscreen - keeping parent window hidden");
-
-                    // Give PCSX2 time to fully enter fullscreen, then push focus to its
-                    // top-level fullscreen window (the parent can't receive SetForegroundWindow
-                    // while hidden, and the embedded child ignores it entirely).
-                    _ = Task.Delay(1500).ContinueWith(_ => {
-                        Application.Current.Dispatcher.Invoke(async () => {
-                            await PCSX2Manager.FocusPCSX2Window();
-                            Console.WriteLine("Pushed focus to PCSX2 fullscreen window after delay");
-                        });
-                    });
                 }
 
                 // Start monitoring PCSX2 window size/fullscreen changes AFTER

@@ -243,6 +243,30 @@ public static class PCSX2Manager {
         }
     }
 
+    /// <summary>
+    /// Polls until PCSX2 has a visible top-level window, then forces it to the foreground.
+    /// Works regardless of fullscreen or windowed mode.
+    /// </summary>
+    private static async Task FocusWhenReady() {
+        for (int i = 0; i < 60; i++) { // up to 30 seconds
+            await Task.Delay(500);
+
+            if (_pcsx2Process == null || _pcsx2Process.HasExited) return;
+
+            IntPtr target = FindFullscreenTopLevelWindow();
+            if (target == IntPtr.Zero)
+                target = FindPcsx2Window();
+
+            if (target != IntPtr.Zero) {
+                ShowWindow(target, SW_SHOW);
+                SetForegroundWindow(target);
+                Console.WriteLine($"PCSX2 window focused after {(i + 1) * 500}ms");
+                return;
+            }
+        }
+        Console.WriteLine("FocusWhenReady: timed out waiting for PCSX2 window");
+    }
+
     public static async Task<bool> EmbedWindow(Window parentWindow, bool showConsole) {
         if (_pcsx2Process == null) {
             if (showConsole)
@@ -348,12 +372,13 @@ public static class PCSX2Manager {
 
             // Show PCSX2 window (now embedded and properly sized)
             ShowWindow(_pcsx2Window, SW_SHOW);
-            
-            // Focus the PARENT window — SetForegroundWindow on a child HWND is a no-op
-            SetForegroundWindow(parentHandle);
 
             if (showConsole)
                 Console.WriteLine("PCSX2 window embedded and shown successfully!");
+
+            // Fire-and-forget: keep polling until PCSX2 has a focusable window and push focus to it.
+            // This handles both windowed and fullscreen without needing a fixed delay.
+            _ = FocusWhenReady();
 
             return true;
         } catch (Exception ex) {
@@ -553,8 +578,7 @@ public static class PCSX2Manager {
                     // Detect fullscreen via top-level window enumeration.
                     // We cannot use the embedded child's rect because after SetParent
                     // it is parent-relative, not screen-relative.
-                    IntPtr fullscreenHwnd = FindFullscreenTopLevelWindow();
-                    bool isFullscreen = fullscreenHwnd != IntPtr.Zero;
+                    bool isFullscreen = HasFullscreenTopLevelWindow();
 
                     // Only act on state transitions
                     if (isFullscreen == lastFullscreenState) continue;
@@ -563,14 +587,8 @@ public static class PCSX2Manager {
                     Console.WriteLine($"PCSX2 fullscreen state changed: {isFullscreen}");
 
                     if (isFullscreen) {
-                        // Push focus to the fullscreen window as soon as we detect it —
-                        // this is the reliable moment rather than a blind fixed delay.
-                        Console.WriteLine("PCSX2 fullscreen window appeared - pushing focus");
-                        SetForegroundWindow(fullscreenHwnd);
-                        ShowWindow(fullscreenHwnd, SW_SHOW);
-
                         Application.Current.Dispatcher.Invoke(() => {
-                            Console.WriteLine("Hiding parent window");
+                            Console.WriteLine("PCSX2 entered fullscreen - hiding parent window");
                             parentWindow.Hide();
                             parentWindow.WindowState = WindowState.Minimized;
                         });

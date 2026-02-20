@@ -44,14 +44,14 @@ if errorlevel 1 (
 cd ..
 
 echo.
-echo Step 3: Building UYALauncherSetup (Installer)...
+echo Step 3: Building UYALauncherInstaller...
 echo.
 cd installer
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 
 if errorlevel 1 (
     echo.
-    echo BUILD FAILED: UYALauncherSetup
+    echo BUILD FAILED: UYALauncherInstaller
     cd ..
     pause
     exit /b 1
@@ -79,7 +79,7 @@ if exist "installer\data" (
 )
 
 REM Copy installer exe to release root
-copy "installer\bin\Release\net8.0-windows\win-x64\publish\UYALauncherSetup.exe" "release\" >nul
+copy "installer\bin\Release\net8.0-windows\win-x64\publish\UYALauncherInstaller.exe" "release\" >nul
 
 REM Copy updater exe to release root (for GitHub releases)
 copy "updater\bin\Release\net8.0-windows\win-x64\publish\UYALauncherUpdater.exe" "release\" >nul
@@ -91,10 +91,9 @@ echo ======================================
 echo.
 echo Release folder structure:
 echo release\
-echo   UYALauncherSetup.exe (installer - for new users)
+echo   UYALauncherInstaller.exe (installer - for new users)
 echo   UYALauncherUpdater.exe (updater - for GitHub releases)
 echo   UYALauncher\
 echo     UYALauncher.exe
 echo     data\
 echo.
-pause

@@ -1,6 +1,8 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Diagnostics;
+using System.Windows.Navigation;
 using Microsoft.Win32;
 
 namespace UYALauncher;
@@ -180,5 +182,23 @@ public partial class SettingsWindow : Window {
         if (!_isHotkeyMode && DialogResult != true && !_cancelled) {
             _cancelled = true;
         }
+    }
+
+    private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e) {
+        try {
+            Process.Start(new ProcessStartInfo {
+                FileName = e.Uri.AbsoluteUri,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) {
+            MessageBox.Show(
+                $"Unable to open link:\n\n{ex.Message}",
+                "Navigation Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+
+        e.Handled = true;
     }
 }

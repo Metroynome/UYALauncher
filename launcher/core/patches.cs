@@ -80,8 +80,9 @@ public static class PatchManager {
             var pnachPath = Path.Combine(patchesFolder, filename);
             var shouldExist = patch.IsEnabled(config.Patches);
             var patchCode = isPal ? patch.PalPatch : patch.NtscPatch;
-            // Skip if no patch code for this region
-            if (patchCode == null)
+
+            // If there's no patch code for this region AND the patch shouldn't exist anyway, nothing to do
+            if (patchCode == null && !shouldExist)
                 continue;
 
             // Load or create file
@@ -96,6 +97,9 @@ public static class PatchManager {
             var patchStart = fileLines.FindIndex(line => line.Contains(patch.Description));
             var patchExists = patchStart >= 0;
             if (shouldExist && !patchExists) {
+                // No patch code available for this region — skip silently
+                if (patchCode == null)
+                    continue;
                 // Add patch
                 Console.WriteLine($"Adding patch: {patch.Description} to {filename}");
                 fileLines.Add("");

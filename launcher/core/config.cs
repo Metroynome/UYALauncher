@@ -24,36 +24,34 @@ public class ConfigurationData {
 
 public static class Configuration {
     private const string ConfigFileName = "config.json";
-    
-    // Get the base application directory (where the exe is located)
+
+    // --- Paths ---
     public static string GetAppDirectory() {
         var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;
         return Path.GetDirectoryName(exePath) ?? Environment.CurrentDirectory;
     }
-    
-    // Config now lives in data/ folder next to the exe
+
     public static string GetConfigPath() {
         var appDir = GetAppDirectory();
         var dataDir = Path.Combine(appDir, "data");
         Directory.CreateDirectory(dataDir);
         return Path.Combine(dataDir, ConfigFileName);
     }
-    
-    // Get path to bundled PCSX2 executable
+
     public static string GetPcsx2Path() {
         var appDir = GetAppDirectory();
         return Path.Combine(appDir, "data", "emulator", "pcsx2-qt.exe");
     }
-    
-    // Get path to patches folder
+
     public static string GetPatchesPath() {
         var appDir = GetAppDirectory();
         return Path.Combine(appDir, "data", "emulator", "patches");
     }
 
+    // --- First run / config completeness ---
     public static bool IsFirstRun() {
         var configPath = GetConfigPath();
-        var exists = File.Exists(configPath);
+        bool exists = File.Exists(configPath);
         System.Diagnostics.Debug.WriteLine($"IsFirstRun: Config path '{configPath}' exists: {exists}");
         return !exists;
     }
@@ -66,7 +64,6 @@ public static class Configuration {
 
         try {
             var config = Load();
-            // Check that all required fields are present and not empty
             bool hasIso = !string.IsNullOrWhiteSpace(config.IsoPath);
             bool hasBios = !string.IsNullOrWhiteSpace(config.BiosPath);
             bool hasRegion = !string.IsNullOrWhiteSpace(config.Region);
@@ -75,7 +72,6 @@ public static class Configuration {
             System.Diagnostics.Debug.WriteLine($"  BiosPath: '{config.BiosPath}' -> hasBios: {hasBios}");
             System.Diagnostics.Debug.WriteLine($"  Region: '{config.Region}' -> hasRegion: {hasRegion}");
             System.Diagnostics.Debug.WriteLine($"  Complete: {hasIso && hasBios && hasRegion}");
-            
             return hasIso && hasBios && hasRegion;
         } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"IsConfigComplete: Exception - {ex.Message}");
@@ -83,6 +79,15 @@ public static class Configuration {
         }
     }
 
+    // --- Region normalization ---
+    public static string NormalizeRegion(string region) => region.Trim() switch {
+        "NTSC-U (North America)" or "NTSC" => "NTSC",
+        "PAL (Europe)" or "PAL" => "PAL",
+        "Both" => "Both",
+        _ => "NTSC"
+    };
+
+    // --- Load / Save ---
     public static ConfigurationData Load() {
         var configPath = GetConfigPath();
         if (!File.Exists(configPath)) {
@@ -91,24 +96,28 @@ public static class Configuration {
 
         try {
             var json = File.ReadAllText(configPath);
-            return JsonSerializer.Deserialize<ConfigurationData>(json) ?? new ConfigurationData();
+            var config = JsonSerializer.Deserialize<ConfigurationData>(json) ?? new ConfigurationData();
+            config.Region = NormalizeRegion(config.Region);
+            return config;
         } catch {
             return new ConfigurationData();
         }
     }
 
     public static void Save(ConfigurationData config) {
+        config.Region = NormalizeRegion(config.Region);
+
         var configPath = GetConfigPath();
-        var options = new JsonSerializerOptions { 
-            WriteIndented = true 
+        var options = new JsonSerializerOptions {
+            WriteIndented = true
         };
-        
+
         var json = JsonSerializer.Serialize(config, options);
         File.WriteAllText(configPath, json);
     }
 
-    public static string GetInstalledVersion()
-    {
+    // --- Version helpers ---
+    public static string GetInstalledVersion() {
         try {
             var config = Load();
             return config.Version;

@@ -132,7 +132,7 @@ public class InstallerWindow : Window {
             
             if (string.IsNullOrEmpty(installerUrl)) {
                 MessageBox.Show(
-                    "Could not find UYALauncherSetup.exe in the latest release.\n\n" +
+                    "Could not find UYALauncherInstaller.exe in the latest release.\n\n" +
                     "Please visit GitHub to download manually.",
                     "Download Failed",
                     MessageBoxButton.OK,
@@ -143,7 +143,7 @@ public class InstallerWindow : Window {
 
             UpdateStatus("Downloading installer...", 20);
             
-            var tempPath = Path.Combine(Path.GetTempPath(), "UYALauncherSetup.exe");
+            var tempPath = Path.Combine(Path.GetTempPath(), "UYALauncherInstaller.exe");
             await DownloadFileAsync(installerUrl, tempPath);
 
             UpdateStatus("Launching installer...", 95);
@@ -182,7 +182,7 @@ public class InstallerWindow : Window {
         if (root.TryGetProperty("assets", out var assets)) {
             foreach (var asset in assets.EnumerateArray()) {
                 var name = asset.GetProperty("name").GetString();
-                if (name == "UYALauncherSetup.exe") {
+                if (name == "UYALauncherInstaller.exe") {
                     return asset.GetProperty("browser_download_url").GetString() ?? string.Empty;
                 }
             }

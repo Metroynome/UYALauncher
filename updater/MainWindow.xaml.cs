@@ -99,17 +99,16 @@ public partial class MainWindow : Window
         {
             string outputPath;
 
-            // Adjust this if your resource names include namespace prefix
-            if (resource.EndsWith("UYALauncher.exe"))
+            // Handle launcher EXE (logical name is exactly "UYALauncher.exe")
+            if (resource == "UYALauncher.exe")
             {
                 outputPath = Path.Combine(_installPath, "UYALauncher.exe.new");
             }
-            else if (resource.Contains(".data."))
+            // Handle embedded data files (logical names start with "data/")
+            else if (resource.StartsWith("data/"))
             {
-                var relative = resource.Substring(resource.IndexOf(".data.") + 6)
-                    .Replace('.', Path.DirectorySeparatorChar);
-
-                outputPath = Path.Combine(_installPath, "data", relative);
+                var relative = resource.Replace('/', Path.DirectorySeparatorChar);
+                outputPath = Path.Combine(_installPath, relative);
             }
             else
             {
@@ -137,7 +136,6 @@ public partial class MainWindow : Window
         if (!File.Exists(newPath))
             return;
 
-        // Retry loop in case file is still locked
         for (int i = 0; i < 5; i++)
         {
             try
@@ -159,7 +157,7 @@ public partial class MainWindow : Window
             }
             catch
             {
-                Task.Delay(1000).Wait();
+                System.Threading.Thread.Sleep(1000);
             }
         }
 

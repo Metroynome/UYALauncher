@@ -107,8 +107,9 @@
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Right"
                                     MinWidth="400">
-                                <ComboBoxItem Content="NTSC-U (North America)" IsSelected="True"/>
-                                <ComboBoxItem Content="PAL (Europe)"/>
+                                <ComboBoxItem Content="NTSC-U (North America)" Tag="NTSC" />
+                                <ComboBoxItem Content="PAL (Europe)" Tag="PAL" />
+                                <!-- <ComboBoxItem Content="Both" Tag="Both" /> -->
                             </ComboBox>
                         </Grid>
 

@@ -14,7 +14,7 @@ public class ConfigurationData {
         .GetName().Version?.ToString(3) ?? "3.0.0";
     public bool ShowConsole { get; set; } = false;
     public string IsoPath { get; set; } = string.Empty;
-    public string BiosPath { get; set; } = string.Empty;  // Full path to BIOS .bin file
+    public string BiosPath { get; set; } = string.Empty;
     public string Region { get; set; } = "NTSC";
     public bool AutoUpdate { get; set; } = true;
     public bool EmbedWindow { get; set; } = true;
@@ -51,14 +51,11 @@ public static class Configuration {
     // --- First run / config completeness ---
     public static bool IsFirstRun() {
         var configPath = GetConfigPath();
-        bool exists = File.Exists(configPath);
-        System.Diagnostics.Debug.WriteLine($"IsFirstRun: Config path '{configPath}' exists: {exists}");
-        return !exists;
+        return !File.Exists(configPath);
     }
 
     public static bool IsConfigComplete() {
         if (IsFirstRun()) {
-            System.Diagnostics.Debug.WriteLine("IsConfigComplete: IsFirstRun returned true");
             return false;
         }
 
@@ -67,25 +64,37 @@ public static class Configuration {
             bool hasIso = !string.IsNullOrWhiteSpace(config.IsoPath);
             bool hasBios = !string.IsNullOrWhiteSpace(config.BiosPath);
             bool hasRegion = !string.IsNullOrWhiteSpace(config.Region);
-            System.Diagnostics.Debug.WriteLine($"IsConfigComplete Debug:");
-            System.Diagnostics.Debug.WriteLine($"  IsoPath: '{config.IsoPath}' -> hasIso: {hasIso}");
-            System.Diagnostics.Debug.WriteLine($"  BiosPath: '{config.BiosPath}' -> hasBios: {hasBios}");
-            System.Diagnostics.Debug.WriteLine($"  Region: '{config.Region}' -> hasRegion: {hasRegion}");
-            System.Diagnostics.Debug.WriteLine($"  Complete: {hasIso && hasBios && hasRegion}");
             return hasIso && hasBios && hasRegion;
-        } catch (Exception ex) {
-            System.Diagnostics.Debug.WriteLine($"IsConfigComplete: Exception - {ex.Message}");
+        } catch {
             return false;
         }
     }
 
-    // --- Region normalization ---
-    public static string NormalizeRegion(string region) => region.Trim() switch {
-        "NTSC-U (North America)" or "NTSC" => "NTSC",
-        "PAL (Europe)" or "PAL" => "PAL",
-        "Both" => "Both",
-        _ => "NTSC"
-    };
+    // --- Region normalization (FIXED) ---
+    public static string NormalizeRegion(string? region) {
+        if (string.IsNullOrWhiteSpace(region)) {
+            return "NTSC";
+        }
+
+        var value = region.Trim().ToUpperInvariant();
+
+        switch (value) {
+            case "NTSC-U (NORTH AMERICA)":
+            case "NTSC":
+                return "NTSC";
+
+            case "PAL (EUROPE)":
+            case "PAL":
+                return "PAL";
+
+            case "BOTH":
+                return "Both";
+
+            default:
+                // Preserve unknown values instead of forcing NTSC
+                return region.Trim();
+        }
+    }
 
     // --- Load / Save ---
     public static ConfigurationData Load() {

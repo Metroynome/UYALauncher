@@ -11,7 +11,6 @@ public partial class SettingsWindow : Window {
     private readonly bool _isHotkeyMode;
     private bool _cancelled = false;
 
-    // Default constructor for XAML
     public SettingsWindow() : this(false) {
         Console.WriteLine("SettingsWindow created via default constructor (from XAML?)");
     }
@@ -27,9 +26,9 @@ public partial class SettingsWindow : Window {
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
             throw;
         }
+
         _isHotkeyMode = hotkeyMode;
 
-        // Configure buttons based on mode
         if (_isHotkeyMode) {
             Title = "UYA Launcher - Settings";
             CheckUpdatesButton.Visibility = Visibility.Visible;
@@ -40,7 +39,6 @@ public partial class SettingsWindow : Window {
             Title = "UYA Launcher - First Run Setup";
         }
         
-        // Set version from assembly
         var version = System.Reflection.Assembly.GetExecutingAssembly()
             .GetName().Version?.ToString(3) ?? "3.0.0";
         VersionTextBlock.Text = version;
@@ -48,7 +46,6 @@ public partial class SettingsWindow : Window {
         LoadConfiguration();
         ValidateLaunchButton();
 
-        // Subscribe to text changed events
         IsoPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
         BiosPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
     }
@@ -57,18 +54,19 @@ public partial class SettingsWindow : Window {
 
     private void LoadConfiguration() {
         var config = Configuration.Load();
+
         IsoPathTextBox.Text = config.IsoPath;
         BiosPathTextBox.Text = config.BiosPath;
-        
-        // Set region
+
+        var normalizedRegion = Configuration.NormalizeRegion(config.Region);
+
         foreach (ComboBoxItem item in RegionComboBox.Items) {
-            if (item.Content.ToString() == config.Region) {
+            if ((item.Tag?.ToString() ?? "") == normalizedRegion) {
                 RegionComboBox.SelectedItem = item;
                 break;
             }
         }
 
-        // Set checkboxes
         AutoUpdateCheckBox.IsChecked = config.AutoUpdate;
         EmbedWindowCheckBox.IsChecked = config.EmbedWindow;
         FullscreenCheckBox.IsChecked = config.Fullscreen;
@@ -78,10 +76,12 @@ public partial class SettingsWindow : Window {
     }
 
     private void SaveConfiguration() {
+        var selectedItem = RegionComboBox.SelectedItem as ComboBoxItem;
+
         var config = new ConfigurationData {
             IsoPath = IsoPathTextBox.Text,
             BiosPath = BiosPathTextBox.Text,
-            Region = ((ComboBoxItem)RegionComboBox.SelectedItem)?.Content.ToString() ?? "NTSC",
+            Region = selectedItem?.Tag?.ToString() ?? "NTSC",
             AutoUpdate = AutoUpdateCheckBox.IsChecked ?? true,
             EmbedWindow = EmbedWindowCheckBox.IsChecked ?? true,
             Fullscreen = FullscreenCheckBox.IsChecked ?? true,
@@ -98,7 +98,6 @@ public partial class SettingsWindow : Window {
     private void ValidateLaunchButton() {
         bool hasIso = !string.IsNullOrWhiteSpace(IsoPathTextBox.Text);
         bool hasBios = !string.IsNullOrWhiteSpace(BiosPathTextBox.Text);
-        
         LaunchButton.IsEnabled = hasIso && hasBios;
     }
 
@@ -128,7 +127,6 @@ public partial class SettingsWindow : Window {
         SaveConfiguration();
         
         if (_isHotkeyMode) {
-            // In hotkey mode, apply patches after saving
             try {
                 var config = Configuration.Load();
                 PatchManager.ApplyPatches(config);
@@ -146,22 +144,18 @@ public partial class SettingsWindow : Window {
 
     private void SaveAndRelaunch_Click(object sender, RoutedEventArgs e) {
         SaveConfiguration();
-        
-        // Get path to current executable
+
         var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;
 
-        // Launch new instance
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+        Process.Start(new ProcessStartInfo {
             FileName = exePath,
             UseShellExecute = true
         });
 
-        // Exit current instance
         Application.Current.Shutdown();
     }
 
     private void Launch_Click(object sender, RoutedEventArgs e) {
-        // Save and relaunch for first run
         SaveAndRelaunch_Click(sender, e);
     }
 
@@ -177,8 +171,7 @@ public partial class SettingsWindow : Window {
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e) {
         base.OnClosing(e);
-        
-        // If in first-run mode and window is closing without saving, mark as cancelled
+
         if (!_isHotkeyMode && DialogResult != true && !_cancelled) {
             _cancelled = true;
         }

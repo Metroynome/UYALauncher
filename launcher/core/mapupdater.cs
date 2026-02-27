@@ -5,24 +5,26 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Shapes;
 using IOPath = System.IO.Path;
 
 namespace UYALauncher;
 
-public class MapInfo {
+public class MapInfo
+{
     public required string Filename { get; init; }
     public required string Mapname { get; init; }
     public int Version { get; init; }
 }
 
-public static class MapUpdater {
+public static class MapUpdater
+{
     private const string BaseUrl = "https://box.rac-horizon.com/downloads/maps";
+    private static readonly HttpClient Client = new();
 
-    public static async Task UpdateMapsAsync(string isoPath, string region) {
-        try {
+    public static async Task UpdateMapsAsync(string isoPath, string region)
+    {
+        try
+        {
             var isoDir = IOPath.GetDirectoryName(isoPath);
             if (string.IsNullOrEmpty(isoDir))
                 return;
@@ -30,37 +32,42 @@ public static class MapUpdater {
             var mapsDir = IOPath.Combine(isoDir, "uya");
             Directory.CreateDirectory(mapsDir);
 
-            // Determine which regions to update
-            var regions = region == "Both" 
+            var regions = region == "Both"
                 ? new[] { ("NTSC", ""), ("PAL", ".pal") }
                 : new[] { (region, region == "PAL" ? ".pal" : "") };
 
             var progressWindow = new MapUpdateProgressWindow();
             progressWindow.Show();
 
-            try {
+            try
+            {
                 var totalMapsUpdated = 0;
-                foreach (var (regionName, extension) in regions) {
-                    var indexFile = regionName == "NTSC" 
-                        ? "index_uya_ntsc.txt" 
+
+                foreach (var (regionName, extension) in regions)
+                {
+                    var indexFile = regionName == "NTSC"
+                        ? "index_uya_ntsc.txt"
                         : "index_uya_pal.txt";
 
                     progressWindow.UpdateStatus($"Downloading {regionName} map list...");
 
                     var maps = await GetMapListAsync(indexFile);
-                    var mapsToUpdate = GetMapsNeedingUpdate(maps, mapsDir);
+                    var mapsToUpdate = GetMapsNeedingUpdate(maps, mapsDir, extension);
 
                     if (mapsToUpdate.Count == 0)
                         continue;
 
                     progressWindow.SetTotalMaps(mapsToUpdate.Count + totalMapsUpdated);
 
-                    for (int i = 0; i < mapsToUpdate.Count; i++) {
+                    for (int i = 0; i < mapsToUpdate.Count; i++)
+                    {
                         var map = mapsToUpdate[i];
                         var currentMap = totalMapsUpdated + i + 1;
                         var totalMaps = mapsToUpdate.Count + totalMapsUpdated;
 
-                        progressWindow.UpdateStatus($"Downloading {map.Mapname} ({currentMap}/{totalMaps})");
+                        progressWindow.UpdateStatus(
+                            $"Downloading {map.Mapname} ({currentMap}/{totalMaps})");
+
                         progressWindow.UpdateProgress(currentMap, totalMaps);
 
                         await DownloadMapAsync(map, mapsDir, extension);
@@ -69,19 +76,35 @@ public static class MapUpdater {
                     totalMapsUpdated += mapsToUpdate.Count;
                 }
 
-                if (totalMapsUpdated == 0) {
+                // Download global version file (PowerShell parity)
+                try
+                {
+                    var versionUrl = $"{BaseUrl}/uya/version";
+                    var versionPath = IOPath.Combine(mapsDir, "version");
+                    var versionData = await Client.GetByteArrayAsync(versionUrl);
+                    await File.WriteAllBytesAsync(versionPath, versionData);
+                }
+                catch { }
+
+                if (totalMapsUpdated == 0)
+                {
                     progressWindow.UpdateStatus("All maps are up to date!");
                     await Task.Delay(1000);
-                } else {
-                    progressWindow.UpdateStatus($"Update complete! ({totalMapsUpdated} maps updated)");
+                }
+                else
+                {
+                    progressWindow.UpdateStatus(
+                        $"Update complete! ({totalMapsUpdated} maps updated)");
                     await Task.Delay(1500);
                 }
             }
-            finally {
+            finally
+            {
                 progressWindow.Close();
             }
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             MessageBox.Show(
                 $"Error updating maps:\n\n{ex.Message}",
                 "Map Update Error",
@@ -90,20 +113,24 @@ public static class MapUpdater {
         }
     }
 
-    private static async Task<List<MapInfo>> GetMapListAsync(string indexFile) {
-        using var client = new HttpClient();
+    private static async Task<List<MapInfo>> GetMapListAsync(string indexFile)
+    {
         var url = $"{BaseUrl}/{indexFile}";
-        var content = await client.GetStringAsync(url);
+        var content = await Client.GetStringAsync(url);
 
         var maps = new List<MapInfo>();
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines) {
+
+        foreach (var line in lines)
+        {
             var parts = line.Trim().Split('|');
             if (parts.Length < 3)
                 continue;
 
-            if (int.TryParse(parts[2], out int version)) {
-                maps.Add(new MapInfo {
+            if (int.TryParse(parts[2], out int version))
+            {
+                maps.Add(new MapInfo
+                {
                     Filename = parts[0],
                     Mapname = parts[1],
                     Version = version
@@ -114,16 +141,33 @@ public static class MapUpdater {
         return maps;
     }
 
-    private static List<MapInfo> GetMapsNeedingUpdate(List<MapInfo> maps, string mapsDir) {
-        return maps.Where(map => {
+    private static List<MapInfo> GetMapsNeedingUpdate(
+        List<MapInfo> maps,
+        string mapsDir,
+        string extension)
+    {
+        return maps.Where(map =>
+        {
             var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
             var localVersion = GetLocalMapVersion(versionPath);
-            return localVersion < map.Version;
+
+            var filenameWithExt = map.Filename + extension;
+
+            var worldPath = IOPath.Combine(mapsDir, $"{filenameWithExt}.world");
+            var wadPath = IOPath.Combine(mapsDir, $"{filenameWithExt}.wad");
+
+            bool missingFiles =
+                !File.Exists(worldPath) &&
+                !File.Exists(wadPath);
+
+            return localVersion < map.Version || missingFiles;
         }).ToList();
     }
 
-    private static int GetLocalMapVersion(string versionPath) {
-        try {
+    private static int GetLocalMapVersion(string versionPath)
+    {
+        try
+        {
             if (!File.Exists(versionPath))
                 return -1;
 
@@ -132,38 +176,58 @@ public static class MapUpdater {
                 return BitConverter.ToInt32(bytes, 0);
 
             return -1;
-        } catch {
+        }
+        catch
+        {
             return -1;
         }
     }
 
-    private static async Task DownloadMapAsync(MapInfo map, string mapsDir, string extension) {
+    private static async Task DownloadMapAsync(
+        MapInfo map,
+        string mapsDir,
+        string extension)
+    {
         var filename = map.Filename + extension;
-        var extensions = new[] { ".bg", ".thumb", ".map", ".world", ".sound", ".code", ".wad" };
+        var extensions = new[]
+        {
+            ".bg", ".thumb", ".map",
+            ".world", ".sound", ".code", ".wad"
+        };
 
-        using var client = new HttpClient();
+        foreach (var ext in extensions)
+        {
+            var url = $"{BaseUrl}/uya/{filename}{ext}";
+            var outputPath = IOPath.Combine(mapsDir, $"{filename}{ext}");
 
-        foreach (var ext in extensions) {
-            try {
-                var url = $"{BaseUrl}/uya/{filename}{ext}";
-                var outputPath = IOPath.Combine(mapsDir, $"{filename}{ext}");
-                var data = await client.GetByteArrayAsync(url);
+            try
+            {
+                var data = await Client.GetByteArrayAsync(url);
                 await File.WriteAllBytesAsync(outputPath, data);
-            } catch {
-                // Some extensions might not exist for all maps
+            }
+            catch
+            {
+                // Delete partial file if download failed
+                if (File.Exists(outputPath))
+                    File.Delete(outputPath);
             }
         }
 
         // Download version file
-        try {
+        try
+        {
             var versionUrl = $"{BaseUrl}/uya/{map.Filename}.version";
             var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
-            var versionData = await client.GetByteArrayAsync(versionUrl);
+            var versionData = await Client.GetByteArrayAsync(versionUrl);
             await File.WriteAllBytesAsync(versionPath, versionData);
-        } catch {
-            // Create version file if download fails
+        }
+        catch
+        {
+            // Fallback: create version file locally
             var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
-            await File.WriteAllBytesAsync(versionPath, BitConverter.GetBytes(map.Version));
+            await File.WriteAllBytesAsync(
+                versionPath,
+                BitConverter.GetBytes(map.Version));
         }
     }
 }

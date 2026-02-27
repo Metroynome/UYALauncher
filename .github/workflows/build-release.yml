@@ -23,7 +23,7 @@ jobs:
     - name: Download PCSX2 Data Bundle
       shell: pwsh
       run: |
-        $dataUrl = "https://github.com/${{ github.repository }}/releases/download/data-v1.2.0/UYALauncherData.zip"
+        $dataUrl = "https://github.com/${{ github.repository }}/releases/download/data-v1.3.0/UYALauncherData.zip"
         Write-Host "Downloading PCSX2 data from: $dataUrl"
         Invoke-WebRequest -Uri $dataUrl -OutFile UYALauncherData.zip
         Write-Host "Extracting to installer/data/"

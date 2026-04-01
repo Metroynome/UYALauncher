@@ -1,6 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-	<PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
-
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows</TargetFramework>
@@ -11,6 +9,7 @@
 		<Version>5.0.0</Version>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
 		<PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.49-beta">
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>

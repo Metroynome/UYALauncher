@@ -101,6 +101,42 @@ public partial class SettingsWindow : Window {
         LaunchButton.IsEnabled = hasIso && hasBios;
     }
 
+    private void GetGameInfo_Click(object sender, RoutedEventArgs e) {
+        var isoPath = IsoPathTextBox.Text;
+
+        if (string.IsNullOrWhiteSpace(isoPath)) {
+            MessageBox.Show(
+                "No ISO path set. Please browse for a game ISO first.",
+                "Get Game Info",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var info = GameDetector.ReadFromIso(isoPath);
+
+        if (info == null) {
+            MessageBox.Show(
+                "Could not read game info from the ISO.\n\n" +
+                "The file may not be a valid PS2 disc image, or SYSTEM.CNF could not be found.",
+                "Get Game Info",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        var message =
+            $"Game ID:   {(string.IsNullOrEmpty(info.GameId) ? "(unknown)" : info.GameId)}\n" +
+            $"Region:    {info.RegionLabel}\n\n" +
+            $"Boot line: {(string.IsNullOrEmpty(info.RawBootLine) ? "(none)" : info.RawBootLine)}";
+
+        MessageBox.Show(
+            message,
+            "Game Info",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
     private void BrowseIso_Click(object sender, RoutedEventArgs e) {
         var dialog = new OpenFileDialog {
             Filter = "ISO Files (*.iso)|*.iso|All Files (*.*)|*.*",

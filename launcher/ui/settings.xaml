@@ -37,7 +37,8 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>   <!-- Label -->
                                 <ColumnDefinition Width="*"/>      <!-- TextBox -->
-                                <ColumnDefinition Width="Auto"/>   <!-- Button -->
+                                <ColumnDefinition Width="Auto"/>   <!-- Browse Button -->
+                                <ColumnDefinition Width="Auto"/>   <!-- Get Game Info Button -->
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Text="Game ISO File:" 
@@ -57,7 +58,15 @@
                                     Content="Browse"
                                     Style="{StaticResource PrimarySmallButton}"
                                     Click="BrowseIso_Click"
-                                    MinWidth="100"/>
+                                    MinWidth="100"
+                                    Margin="0,0,10,0"/>
+
+                            <Button x:Name="GetGameInfoButton"
+                                    Grid.Column="3"
+                                    Content="Get Game Info"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Click="GetGameInfo_Click"
+                                    MinWidth="120"/>
                         </Grid>
 
                         <!-- PS2 BIOS -->

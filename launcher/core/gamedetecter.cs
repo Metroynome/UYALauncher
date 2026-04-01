@@ -7,8 +7,10 @@ using DiscUtils.Iso9660;
 namespace UYALauncher;
 
 public enum GameRegion {
-    NTSCU,
-    PAL,
+    NTSC_U,  // North America  (SCUS, SLUS)
+    NTSC_J,  // Japan          (SCPS, SLPS, SCAJ, SLAJ)
+    NTSC_K,  // Korea          (SCKS, SLKS)
+    PAL,     // Europe / AU    (SCES, SLES, SCPS-5xxxx range handled separately)
     Unknown
 }
 
@@ -16,19 +18,24 @@ public class GameInfo {
     public string GameId { get; init; } = string.Empty;
     public string RawBootLine { get; init; } = string.Empty;
     public GameRegion Region { get; init; } = GameRegion.Unknown;
-    public bool IsUYA { get; init; } = false;
 
-    // Known UYA / R&C 3 disc IDs
-    private const string NtscId = "SCUS-97353";
-    private const string PalId  = "SCES-52456";
+    /// <summary>
+    /// Human-readable region label, e.g. "NTSC-U", "PAL", "NTSC-J".
+    /// </summary>
+    public string RegionLabel => Region switch {
+        GameRegion.NTSC_U => "NTSC-U",
+        GameRegion.NTSC_J => "NTSC-J",
+        GameRegion.NTSC_K => "NTSC-K",
+        GameRegion.PAL    => "PAL",
+        _                 => "Unknown"
+    };
 
     public override string ToString() =>
-        $"GameID={GameId}, Region={Region}, IsUYA={IsUYA}";
+        $"GameID={GameId}, Region={RegionLabel}";
 }
 
 public static class GameDetector {
     // SYSTEM.CNF boot line looks like: BOOT2 = cdrom0:\SCUS_973.53;1
-    // We extract the filename stem and normalise it to a disc ID (e.g. SCUS-97353).
     private static readonly Regex BootRegex = new(
         @"BOOT2\s*=\s*cdrom0:\\(?<file>[A-Z0-9_]+\.[A-Z0-9]+)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -77,53 +84,67 @@ public static class GameDetector {
     }
 
     private static GameInfo ParseSystemCnf(string cnfContent) {
-        var bootLine = string.Empty;
-        var gameId   = string.Empty;
-        var region   = GameRegion.Unknown;
-
         var match = BootRegex.Match(cnfContent);
-        if (match.Success) {
-            bootLine = match.Value.Trim();
+        if (!match.Success)
+            return new GameInfo { RawBootLine = string.Empty };
 
-            // e.g. "SCUS_973.53" → "SCUS-97353"
-            gameId = NormaliseGameId(match.Groups["file"].Value);
-            region = RegionFromGameId(gameId);
-        }
-
-        bool isUya = gameId is "SCUS-97353" or "SCES-52456";
+        var bootLine = match.Value.Trim();
+        var gameId   = NormaliseGameId(match.Groups["file"].Value);
+        var region   = RegionFromGameId(gameId);
 
         return new GameInfo {
-            GameId     = gameId,
-            Region     = region,
+            GameId      = gameId,
+            RawBootLine = bootLine,
+            Region      = region
         };
     }
 
     /// <summary>
-    /// Converts a raw filename like "SCUS_973.53" or "SCES_524.56" to the
-    /// canonical disc-ID format "SCUS-97353" / "SCES-52456".
+    /// Converts a raw filename like "SCUS_973.53" to the canonical disc-ID
+    /// format "SCUS-97353".
     /// </summary>
     private static string NormaliseGameId(string raw) {
-        // Split on underscore: ["SCUS", "973.53"]
         var parts = raw.Split('_', 2);
         if (parts.Length != 2)
             return raw.ToUpperInvariant();
 
-        var prefix = parts[0].ToUpperInvariant();          // "SCUS"
-        var digits = parts[1].Replace(".", string.Empty);  // "97353"
+        var prefix = parts[0].ToUpperInvariant();
+        var digits = parts[1].Replace(".", string.Empty);
 
         return $"{prefix}-{digits}";
     }
 
     /// <summary>
-    /// Infers region from the game-ID prefix used by Sony disc IDs.
+    /// Infers region from the Sony disc-ID prefix.
+    ///
+    /// Prefix reference:
+    ///   SCUS / SLUS              → NTSC-U (North America)
+    ///   SCES / SLED / SLES       → PAL    (Europe)
+    ///   SCPS / SLPS / SCAJ / SLAJ → NTSC-J (Japan)
+    ///   SCKS / SLKS              → NTSC-K (Korea)
+    ///   PBPX / PAPX              → NTSC-J (Japan PSX demos / compilations)
     /// </summary>
     private static GameRegion RegionFromGameId(string gameId) {
-        if (gameId.StartsWith("SCUS") || gameId.StartsWith("SLUS"))
-            return GameRegion.NTSCU;
+        if (gameId.Length < 4)
+            return GameRegion.Unknown;
 
-        if (gameId.StartsWith("SCES") || gameId.StartsWith("SLES"))
-            return GameRegion.PAL;  // PAL / other non-NTSC-U
+        var prefix = gameId[..4].ToUpperInvariant();
 
-        return GameRegion.Unknown;
+        return prefix switch {
+            // North America
+            "SCUS" or "SLUS" => GameRegion.NTSC_U,
+
+            // Europe / PAL territories
+            "SCES" or "SLES" or "SCED" or "SLED" => GameRegion.PAL,
+
+            // Japan
+            "SCPS" or "SLPS" or "SCAJ" or "SLAJ" or
+            "PBPX" or "PAPX"                      => GameRegion.NTSC_J,
+
+            // Korea
+            "SCKS" or "SLKS"                      => GameRegion.NTSC_K,
+
+            _ => GameRegion.Unknown
+        };
     }
 }

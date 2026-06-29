@@ -98,7 +98,8 @@ public partial class SettingsWindow : Window {
     private void ValidateLaunchButton() {
         bool hasIso = !string.IsNullOrWhiteSpace(IsoPathTextBox.Text);
         bool hasBios = !string.IsNullOrWhiteSpace(BiosPathTextBox.Text);
-        LaunchButton.IsEnabled = hasIso && hasBios;
+        bool isoSupported = !hasIso || GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(IsoPathTextBox.Text)) == null;
+        LaunchButton.IsEnabled = hasIso && hasBios && isoSupported;
     }
 
     private void GetGameInfo_Click(object sender, RoutedEventArgs e) {
@@ -114,6 +115,7 @@ public partial class SettingsWindow : Window {
         }
 
         var info = GameDetector.ReadFromIso(isoPath);
+        ApplyDetectedRegion(info);
 
         if (info == null) {
             MessageBox.Show(
@@ -125,7 +127,10 @@ public partial class SettingsWindow : Window {
             return;
         }
 
+        ShowUnsupportedGameMessage(info);
+
         var message =
+            $"Game:      {info.GameLabel}\n" +
             $"Game ID:   {(string.IsNullOrEmpty(info.GameId) ? "(unknown)" : info.GameId)}\n" +
             $"Region:    {info.RegionLabel}\n\n" +
             $"Boot line: {(string.IsNullOrEmpty(info.RawBootLine) ? "(none)" : info.RawBootLine)}";
@@ -145,7 +150,52 @@ public partial class SettingsWindow : Window {
 
         if (dialog.ShowDialog() == true) {
             IsoPathTextBox.Text = dialog.FileName;
+            var info = GameDetector.ReadFromIso(dialog.FileName);
+            ApplyDetectedRegion(info);
+            ShowUnsupportedGameMessage(info);
+            ValidateLaunchButton();
         }
+    }
+
+    private void ApplyDetectedRegion(GameInfo? info) {
+        if (info == null)
+            return;
+
+        var regionTag = info.Region switch {
+            GameRegion.NTSC_U => "NTSC",
+            GameRegion.PAL    => "PAL",
+            _                 => null
+        };
+
+        if (regionTag == null)
+            return;
+
+        foreach (ComboBoxItem item in RegionComboBox.Items) {
+            if ((item.Tag?.ToString() ?? "") == regionTag) {
+                RegionComboBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private bool ShowUnsupportedGameMessage(GameInfo? info) {
+        var message = GameSupport.GetUnsupportedMessage(info);
+        if (message == null)
+            return false;
+
+        MessageBox.Show(
+            message,
+            "Unsupported Game Region",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+        return true;
+    }
+
+    private bool ValidateSelectedIsoIsSupported() {
+        if (string.IsNullOrWhiteSpace(IsoPathTextBox.Text))
+            return true;
+
+        return !ShowUnsupportedGameMessage(GameDetector.ReadFromIso(IsoPathTextBox.Text));
     }
 
     private void BrowseBios_Click(object sender, RoutedEventArgs e) {
@@ -160,6 +210,9 @@ public partial class SettingsWindow : Window {
     }
 
     private void Save_Click(object sender, RoutedEventArgs e) {
+        if (!ValidateSelectedIsoIsSupported())
+            return;
+
         SaveConfiguration();
         
         if (_isHotkeyMode) {
@@ -179,6 +232,9 @@ public partial class SettingsWindow : Window {
     }
 
     private void SaveAndRelaunch_Click(object sender, RoutedEventArgs e) {
+        if (!ValidateSelectedIsoIsSupported())
+            return;
+
         SaveConfiguration();
 
         var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;

@@ -34,6 +34,17 @@ public partial class App : Application {
         // Load configuration
         var config = Configuration.Load();
 
+        var unsupportedMessage = GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(config.IsoPath));
+        if (unsupportedMessage != null) {
+            MessageBox.Show(
+                unsupportedMessage,
+                "Unsupported Game Region",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
+
         // Setup console ONLY if enabled in config
         if (config.ShowConsole) {
             AllocConsole();

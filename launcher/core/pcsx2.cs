@@ -94,6 +94,16 @@ public static class PCSX2Manager {
                 return false;
             }
 
+            var unsupportedMessage = GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(config.IsoPath));
+            if (unsupportedMessage != null) {
+                MessageBox.Show(
+                    unsupportedMessage,
+                    "Unsupported Game Region",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return false;
+            }
+
             if (!System.IO.File.Exists(pcsx2Path)) {
                 MessageBox.Show(
                     $"PCSX2 executable not found:\n{pcsx2Path}\n\nMake sure the data/emulator folder exists with pcsx2-qt.exe",

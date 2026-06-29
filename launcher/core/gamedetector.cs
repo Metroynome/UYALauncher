@@ -14,10 +14,17 @@ public enum GameRegion {
     Unknown
 }
 
+public enum SupportedGame {
+    UpYourArsenal,
+    Deadlocked,
+    Unknown
+}
+
 public class GameInfo {
     public string GameId { get; init; } = string.Empty;
     public string RawBootLine { get; init; } = string.Empty;
     public GameRegion Region { get; init; } = GameRegion.Unknown;
+    public SupportedGame Game { get; init; } = SupportedGame.Unknown;
 
     /// <summary>
     /// Human-readable region label, e.g. "NTSC-U", "PAL", "NTSC-J".
@@ -30,8 +37,14 @@ public class GameInfo {
         _                 => "Unknown"
     };
 
+    public string GameLabel => Game switch {
+        SupportedGame.UpYourArsenal => "Ratchet & Clank: Up Your Arsenal",
+        SupportedGame.Deadlocked    => "Ratchet: Deadlocked",
+        _                           => "Unknown"
+    };
+
     public override string ToString() =>
-        $"GameID={GameId}, Region={RegionLabel}";
+        $"Game={GameLabel}, GameID={GameId}, Region={RegionLabel}";
 }
 
 public static class GameDetector {
@@ -66,10 +79,6 @@ public static class GameDetector {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-
     private static string? TryReadFile(CDReader cd, string path) {
         try {
             if (!cd.FileExists(path))
@@ -91,11 +100,13 @@ public static class GameDetector {
         var bootLine = match.Value.Trim();
         var gameId   = NormaliseGameId(match.Groups["file"].Value);
         var region   = RegionFromGameId(gameId);
+        var game     = GameFromGameId(gameId);
 
         return new GameInfo {
             GameId      = gameId,
             RawBootLine = bootLine,
-            Region      = region
+            Region      = region,
+            Game        = game
         };
     }
 
@@ -114,16 +125,6 @@ public static class GameDetector {
         return $"{prefix}-{digits}";
     }
 
-    /// <summary>
-    /// Infers region from the Sony disc-ID prefix.
-    ///
-    /// Prefix reference:
-    ///   SCUS / SLUS              → NTSC-U (North America)
-    ///   SCES / SLED / SLES       → PAL    (Europe)
-    ///   SCPS / SLPS / SCAJ / SLAJ → NTSC-J (Japan)
-    ///   SCKS / SLKS              → NTSC-K (Korea)
-    ///   PBPX / PAPX              → NTSC-J (Japan PSX demos / compilations)
-    /// </summary>
     private static GameRegion RegionFromGameId(string gameId) {
         if (gameId.Length < 4)
             return GameRegion.Unknown;
@@ -131,20 +132,20 @@ public static class GameDetector {
         var prefix = gameId[..4].ToUpperInvariant();
 
         return prefix switch {
-            // North America
             "SCUS" or "SLUS" => GameRegion.NTSC_U,
-
-            // Europe / PAL territories
             "SCES" or "SLES" or "SCED" or "SLED" => GameRegion.PAL,
-
-            // Japan
             "SCPS" or "SLPS" or "SCAJ" or "SLAJ" or
-            "PBPX" or "PAPX"                      => GameRegion.NTSC_J,
-
-            // Korea
-            "SCKS" or "SLKS"                      => GameRegion.NTSC_K,
-
+            "PBPX" or "PAPX" => GameRegion.NTSC_J,
+            "SCKS" or "SLKS" => GameRegion.NTSC_K,
             _ => GameRegion.Unknown
+        };
+    }
+
+    private static SupportedGame GameFromGameId(string gameId) {
+        return gameId.ToUpperInvariant() switch {
+            "SCUS-97353" or "SCES-52456" => SupportedGame.UpYourArsenal,
+            "SCUS-97465" or "SCES-53285" => SupportedGame.Deadlocked,
+            _                            => SupportedGame.Unknown
         };
     }
 }

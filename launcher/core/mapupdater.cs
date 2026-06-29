@@ -29,12 +29,10 @@ public static class MapUpdater
             if (string.IsNullOrEmpty(isoDir))
                 return;
 
-            var mapsDir = IOPath.Combine(isoDir, "uya");
+            var gameInfo = GameDetector.ReadFromIso(isoPath);
+            var profile = GetMapProfile(gameInfo?.Game ?? SupportedGame.Unknown, region);
+            var mapsDir = IOPath.Combine(isoDir, profile.LocalFolder);
             Directory.CreateDirectory(mapsDir);
-
-            var regions = region == "Both"
-                ? new[] { ("NTSC", ""), ("PAL", ".pal") }
-                : new[] { (region, region == "PAL" ? ".pal" : "") };
 
             var progressWindow = new MapUpdateProgressWindow();
             progressWindow.Show();
@@ -43,16 +41,12 @@ public static class MapUpdater
             {
                 var totalMapsUpdated = 0;
 
-                foreach (var (regionName, extension) in regions)
+                foreach (var source in profile.Sources)
                 {
-                    var indexFile = regionName == "NTSC"
-                        ? "index_uya_ntsc.txt"
-                        : "index_uya_pal.txt";
+                    progressWindow.UpdateStatus($"Downloading {profile.DisplayName} {source.RegionName} map list...");
 
-                    progressWindow.UpdateStatus($"Downloading {regionName} map list...");
-
-                    var maps = await GetMapListAsync(indexFile);
-                    var mapsToUpdate = GetMapsNeedingUpdate(maps, mapsDir, extension);
+                    var maps = await GetMapListAsync(source.IndexFile);
+                    var mapsToUpdate = GetMapsNeedingUpdate(maps, mapsDir, source.FileSuffix);
 
                     if (mapsToUpdate.Count == 0)
                         continue;
@@ -70,16 +64,15 @@ public static class MapUpdater
 
                         progressWindow.UpdateProgress(currentMap, totalMaps);
 
-                        await DownloadMapAsync(map, mapsDir, extension);
+                        await DownloadMapAsync(map, mapsDir, source.FileSuffix, profile.RemoteFolder);
                     }
 
                     totalMapsUpdated += mapsToUpdate.Count;
                 }
 
-                // Download global version file (PowerShell parity)
                 try
                 {
-                    var versionUrl = $"{BaseUrl}/uya/version";
+                    var versionUrl = $"{BaseUrl}/{profile.RemoteFolder}/version";
                     var versionPath = IOPath.Combine(mapsDir, "version");
                     var versionData = await Client.GetByteArrayAsync(versionUrl);
                     await File.WriteAllBytesAsync(versionPath, versionData);
@@ -111,6 +104,38 @@ public static class MapUpdater
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    private static MapProfile GetMapProfile(SupportedGame game, string region)
+    {
+        return game switch
+        {
+            SupportedGame.Deadlocked => new MapProfile(
+                "Ratchet: Deadlocked",
+                "dl",
+                "dl",
+                new[] { new MapSource("NTSC", "index_dl_ntsc.txt", "") }),
+
+            _ => new MapProfile(
+                "UYA",
+                "uya",
+                "uya",
+                GetUyaSources(region))
+        };
+    }
+
+    private static MapSource[] GetUyaSources(string region)
+    {
+        return region == "Both"
+            ? new[] {
+                new MapSource("NTSC", "index_uya_ntsc.txt", ""),
+                new MapSource("PAL", "index_uya_pal.txt", ".pal")
+            }
+            : new[] {
+                region == "PAL"
+                    ? new MapSource("PAL", "index_uya_pal.txt", ".pal")
+                    : new MapSource("NTSC", "index_uya_ntsc.txt", "")
+            };
     }
 
     private static async Task<List<MapInfo>> GetMapListAsync(string indexFile)
@@ -186,7 +211,8 @@ public static class MapUpdater
     private static async Task DownloadMapAsync(
         MapInfo map,
         string mapsDir,
-        string extension)
+        string extension,
+        string remoteFolder)
     {
         var filename = map.Filename + extension;
         var extensions = new[]
@@ -197,7 +223,7 @@ public static class MapUpdater
 
         foreach (var ext in extensions)
         {
-            var url = $"{BaseUrl}/uya/{filename}{ext}";
+            var url = $"{BaseUrl}/{remoteFolder}/{filename}{ext}";
             var outputPath = IOPath.Combine(mapsDir, $"{filename}{ext}");
 
             try
@@ -207,27 +233,35 @@ public static class MapUpdater
             }
             catch
             {
-                // Delete partial file if download failed
                 if (File.Exists(outputPath))
                     File.Delete(outputPath);
             }
         }
 
-        // Download version file
         try
         {
-            var versionUrl = $"{BaseUrl}/uya/{map.Filename}.version";
+            var versionUrl = $"{BaseUrl}/{remoteFolder}/{map.Filename}.version";
             var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
             var versionData = await Client.GetByteArrayAsync(versionUrl);
             await File.WriteAllBytesAsync(versionPath, versionData);
         }
         catch
         {
-            // Fallback: create version file locally
             var versionPath = IOPath.Combine(mapsDir, $"{map.Filename}.version");
             await File.WriteAllBytesAsync(
                 versionPath,
                 BitConverter.GetBytes(map.Version));
         }
     }
+
+    private sealed record MapProfile(
+        string DisplayName,
+        string RemoteFolder,
+        string LocalFolder,
+        IReadOnlyList<MapSource> Sources);
+
+    private sealed record MapSource(
+        string RegionName,
+        string IndexFile,
+        string FileSuffix);
 }

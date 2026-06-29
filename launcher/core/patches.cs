@@ -53,6 +53,14 @@ public static class PatchManager {
     };
 
     public static void ApplyPatches(ConfigurationData config) {
+        var gameInfo = GameDetector.ReadFromIso(config.IsoPath);
+        var game = gameInfo?.Game ?? SupportedGame.Unknown;
+
+        if (game == SupportedGame.Deadlocked) {
+            Console.WriteLine("Ratchet: Deadlocked detected; no Deadlocked patches are configured yet.");
+            return;
+        }
+
         if (config.Region == "Both") {
             ManagePnachPatches(config, "NTSC");
             ManagePnachPatches(config, "PAL");

@@ -110,7 +110,7 @@ public static class MapUpdater
     {
         return game switch
         {
-            SupportedGame.Deadlocked => new MapProfile(
+            SupportedGame.Rac4 => new MapProfile(
                 "Ratchet: Deadlocked",
                 "dl",
                 "dl",

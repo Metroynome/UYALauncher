@@ -39,6 +39,7 @@ public class PatchDiscProfile {
 public static class PatchManager {
     private const string Rac3NtscU = "Rac3:NTSC_U:1.00:";
     private const string Rac3Pal = "Rac3:PAL:1.00:";
+    private const string Rac4NtscU = "Rac4:NTSC_U:1.00:";
 
     private static readonly List<PatchDiscProfile> DiscProfiles = new() {
         new PatchDiscProfile {
@@ -164,7 +165,7 @@ public static class PatchManager {
         new PnachPatch {
             IsEnabled = p => p.BootToMultiplayer,
             Target = PatchTarget.Singleplayer,
-            Description = "// UYA Launcher: Boot to Multiplayer",
+            Description = "// Horizon Launcher: Boot to Multiplayer",
             PatchCodes = new Dictionary<string, string> {
                 [Rac3NtscU + nameof(PatchTarget.Singleplayer)] =
                     "patch=1,EE,20381590,extended,080e6010\n",
@@ -175,7 +176,7 @@ public static class PatchManager {
         new PnachPatch {
             IsEnabled = p => p.Widescreen,
             Target = PatchTarget.Singleplayer,
-            Description = "// UYA Launcher: Enable Widescreen",
+            Description = "// Horizon Launcher: Enable Widescreen",
             PatchCodes = new Dictionary<string, string> {
                 [Rac3NtscU + nameof(PatchTarget.Singleplayer)] =
                     "patch=1,EE,001439fd,extended,00000001\n",
@@ -186,13 +187,46 @@ public static class PatchManager {
         new PnachPatch{
             IsEnabled = _ => true,
             Target = PatchTarget.Multiplayer,
-            Description = "// UYA Launcher: DNAS Skip",
+            Description = "// Horizon Launcher: DNAS Skip",
             PatchCodes = new Dictionary<string, string> {
                 [Rac3Pal + nameof(PatchTarget.Multiplayer)] =
                     "patch=1,EE,D04D55E4,extended,24020006\n" +
                     "patch=1,EE,004D55D8,extended,00000000\n" +
                     "patch=1,EE,D04D55E4,extended,24020006\n" +
                     "patch=1,EE,004D55E4,extended,00000005\n"
+            }
+        },
+
+
+        // Ratchet: Deadlocked patches
+        new PnachPatch {
+            IsEnabled = p => p.BootToMultiplayer,
+            Target = PatchTarget.Shared,
+            Description = "// Horizon Launcher: Boot to Multiplayer",
+            PatchCodes = new Dictionary<string, string> {
+                [Rac4NtscU + nameof(PatchTarget.Shared)] =
+                    "patch=1,EE,D04385C8,extended,0000FF1B\n" +
+                    "patch=1,EE,204385C8,extended,00000000\n"
+            }
+        },
+        new PnachPatch {
+            IsEnabled = _ => true,
+            Target = PatchTarget.Shared,
+            Description = "// Horizon Launcher: DNAS Skip",
+            PatchCodes = new Dictionary<string, string> {
+                [Rac4NtscU + nameof(PatchTarget.Shared)] =
+                    "patch=1,EE,D0718e5c,extended,0000C33C\n" + 
+                    "patch=1,EE,20718e5c,extended,0c1d4f1a\n"
+            }
+        },
+        new PnachPatch {
+            IsEnabled = _ => true,
+            Target = PatchTarget.Shared,
+            Description = "// Horizon Launcher: Disable Framelimiter",
+            PatchCodes = new Dictionary<string, string> {
+                [Rac4NtscU + nameof(PatchTarget.Shared)] =
+                    "patch=1,EE,D021DF60,extended,0000001E\n" + 
+                    "patch=1,EE,2021DF60,extended,0000003C\n"
             }
         }
     };

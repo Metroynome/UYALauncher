@@ -8,8 +8,8 @@ public static class GameSupport {
         new(
             SupportedGame.Rac3,
             new[] { GameRegion.NTSC_U, GameRegion.PAL },
-            "Ratchet & Clank: Up Your Arsenal NTSC-U/PAL",
-            "Please select a Ratchet & Clank: Up Your Arsenal NTSC-U/PAL ISO (SCUS-97353 or SCES-52456)."),
+            "Ratchet and Clank: Up Your Arsenal NTSC-U/PAL",
+            "Please select a Ratchet and Clank: Up Your Arsenal NTSC-U/PAL ISO (SCUS-97353 or SCES-52456)."),
         new(
             SupportedGame.Rac4,
             new[] { GameRegion.NTSC_U },

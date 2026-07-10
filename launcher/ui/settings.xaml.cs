@@ -46,7 +46,8 @@ public partial class SettingsWindow : Window {
         LoadConfiguration();
         ValidateLaunchButton();
 
-        IsoPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
+        Rac3IsoPathTextBox.TextChanged += IsoPathTextBox_TextChanged;
+        Rac4IsoPathTextBox.TextChanged += IsoPathTextBox_TextChanged;
         BiosPathTextBox.TextChanged += (s, e) => ValidateLaunchButton();
     }
 
@@ -55,18 +56,11 @@ public partial class SettingsWindow : Window {
     private void LoadConfiguration() {
         var config = Configuration.Load();
 
-        IsoPathTextBox.Text = config.IsoPath;
+        Rac3IsoPathTextBox.Text = config.Rac3IsoPath;
+        Rac4IsoPathTextBox.Text = config.Rac4IsoPath;
         BiosPathTextBox.Text = config.BiosPath;
 
-        var normalizedRegion = Configuration.NormalizeRegion(config.Region);
-
-        foreach (ComboBoxItem item in RegionComboBox.Items) {
-            if ((item.Tag?.ToString() ?? "") == normalizedRegion) {
-                RegionComboBox.SelectedItem = item;
-                break;
-            }
-        }
-
+        RefreshDefaultGameOptions(config.DefaultGame);
         AutoUpdateCheckBox.IsChecked = config.AutoUpdate;
         EmbedWindowCheckBox.IsChecked = config.EmbedWindow;
         FullscreenCheckBox.IsChecked = config.Fullscreen;
@@ -76,12 +70,15 @@ public partial class SettingsWindow : Window {
     }
 
     private void SaveConfiguration() {
-        var selectedItem = RegionComboBox.SelectedItem as ComboBoxItem;
+        var existingConfig = Configuration.Load();
+        var selectedDefaultGame = DefaultGameComboBox.SelectedItem as ComboBoxItem;
 
         var config = new ConfigurationData {
-            IsoPath = IsoPathTextBox.Text,
+            Rac3IsoPath = Rac3IsoPathTextBox.Text,
+            Rac4IsoPath = Rac4IsoPathTextBox.Text,
             BiosPath = BiosPathTextBox.Text,
-            Region = selectedItem?.Tag?.ToString() ?? "NTSC",
+            Region = existingConfig.Region,
+            DefaultGame = selectedDefaultGame?.Tag?.ToString() ?? "None",
             AutoUpdate = AutoUpdateCheckBox.IsChecked ?? true,
             EmbedWindow = EmbedWindowCheckBox.IsChecked ?? true,
             Fullscreen = FullscreenCheckBox.IsChecked ?? true,
@@ -95,19 +92,118 @@ public partial class SettingsWindow : Window {
         Configuration.Save(config);
     }
 
-    private void ValidateLaunchButton() {
-        bool hasIso = !string.IsNullOrWhiteSpace(IsoPathTextBox.Text);
-        bool hasBios = !string.IsNullOrWhiteSpace(BiosPathTextBox.Text);
-        bool isoSupported = !hasIso || GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(IsoPathTextBox.Text)) == null;
-        LaunchButton.IsEnabled = hasIso && hasBios && isoSupported;
+    private void IsoPathTextBox_TextChanged(object sender, TextChangedEventArgs e) {
+        RefreshDefaultGameOptions();
+        ValidateLaunchButton();
     }
 
-    private void GetGameInfo_Click(object sender, RoutedEventArgs e) {
-        var isoPath = IsoPathTextBox.Text;
+    private void RefreshDefaultGameOptions(string? preferredDefaultGame = null) {
+        var selectedDefaultGame = preferredDefaultGame
+            ?? (DefaultGameComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString()
+            ?? "None";
+        selectedDefaultGame = ConfigurationData.NormalizeDefaultGame(selectedDefaultGame);
 
+        DefaultGameComboBox.Items.Clear();
+        DefaultGameComboBox.Items.Add(new ComboBoxItem {
+            Content = "None (Show Game Select)",
+            Tag = "None"
+        });
+
+        AddDefaultGameOption(Rac3IsoPathTextBox.Text, SupportedGame.Rac3, "Rac3");
+        AddDefaultGameOption(Rac4IsoPathTextBox.Text, SupportedGame.Rac4, "Rac4");
+
+        foreach (ComboBoxItem item in DefaultGameComboBox.Items) {
+            if ((item.Tag?.ToString() ?? "") == selectedDefaultGame) {
+                DefaultGameComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        DefaultGameComboBox.SelectedIndex = 0;
+    }
+
+    private void AddDefaultGameOption(string isoPath, SupportedGame game, string tag) {
+        if (string.IsNullOrWhiteSpace(isoPath))
+            return;
+
+        DefaultGameComboBox.Items.Add(new ComboBoxItem {
+            Content = GetGameDisplayName(isoPath, game),
+            Tag = tag
+        });
+    }
+
+    private static string GetGameDisplayName(string isoPath, SupportedGame game) {
+        return GameDisplayNames.GetDisplayName(GameDetector.ReadFromIso(isoPath), game);
+    }
+
+    private void ValidateLaunchButton() {
+        bool hasAnyIso = HasAnyIsoPath();
+        bool hasBios = !string.IsNullOrWhiteSpace(BiosPathTextBox.Text);
+        bool isosValid = IsIsoSlotSupported(Rac3IsoPathTextBox.Text, SupportedGame.Rac3) &&
+                         IsIsoSlotSupported(Rac4IsoPathTextBox.Text, SupportedGame.Rac4);
+
+        LaunchButton.IsEnabled = hasAnyIso && hasBios && isosValid;
+        SaveButton.IsEnabled = hasAnyIso && isosValid;
+        SaveAndRelaunchButton.IsEnabled = hasAnyIso && hasBios && isosValid;
+    }
+
+    private bool HasAnyIsoPath() {
+        return !string.IsNullOrWhiteSpace(Rac3IsoPathTextBox.Text) ||
+               !string.IsNullOrWhiteSpace(Rac4IsoPathTextBox.Text);
+    }
+
+    private static bool IsIsoSlotSupported(string isoPath, SupportedGame expectedGame) {
+        if (string.IsNullOrWhiteSpace(isoPath))
+            return true;
+
+        var info = GameDetector.ReadFromIso(isoPath);
+        return info?.Game == expectedGame && GameSupport.GetUnsupportedMessage(info) == null;
+    }
+
+    private void GetRac3GameInfo_Click(object sender, RoutedEventArgs e) {
+        ShowGameInfo(Rac3IsoPathTextBox.Text, SupportedGame.Rac3, "Up Your Arsenal");
+    }
+
+    private void GetRac4GameInfo_Click(object sender, RoutedEventArgs e) {
+        ShowGameInfo(Rac4IsoPathTextBox.Text, SupportedGame.Rac4, "Deadlocked");
+    }
+
+    private void ClearRac3IsoPath_Click(object sender, RoutedEventArgs e) {
+        Rac3IsoPathTextBox.Clear();
+        ValidateLaunchButton();
+    }
+
+    private void ClearRac4IsoPath_Click(object sender, RoutedEventArgs e) {
+        Rac4IsoPathTextBox.Clear();
+        ValidateLaunchButton();
+    }
+
+    private void BrowseRac3Iso_Click(object sender, RoutedEventArgs e) {
+        BrowseIso(Rac3IsoPathTextBox, SupportedGame.Rac3, "Select Up Your Arsenal ISO File");
+    }
+
+    private void BrowseRac4Iso_Click(object sender, RoutedEventArgs e) {
+        BrowseIso(Rac4IsoPathTextBox, SupportedGame.Rac4, "Select Deadlocked ISO File");
+    }
+
+    private void BrowseIso(TextBox targetTextBox, SupportedGame expectedGame, string title) {
+        var dialog = new OpenFileDialog {
+            Filter = "ISO Files (*.iso)|*.iso|All Files (*.*)|*.*",
+            Title = title
+        };
+
+        if (dialog.ShowDialog() == true) {
+            targetTextBox.Text = dialog.FileName;
+            var info = GameDetector.ReadFromIso(dialog.FileName);
+            ShowIsoValidationMessage(info, expectedGame);
+            ValidateLaunchButton();
+        }
+    }
+
+    private void ShowGameInfo(string isoPath, SupportedGame expectedGame, string slotName) {
         if (string.IsNullOrWhiteSpace(isoPath)) {
             MessageBox.Show(
-                "No ISO path set. Please browse for a game ISO first.",
+                $"No {slotName} ISO path set. Please browse for an ISO first.",
                 "Get Game Info",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -115,8 +211,6 @@ public partial class SettingsWindow : Window {
         }
 
         var info = GameDetector.ReadFromIso(isoPath);
-        ApplyDetectedRegion(info);
-
         if (info == null) {
             MessageBox.Show(
                 "Could not read game info from the ISO.\n\n" +
@@ -127,10 +221,9 @@ public partial class SettingsWindow : Window {
             return;
         }
 
-        ShowUnsupportedGameMessage(info);
-
+        ShowIsoValidationMessage(info, expectedGame);
         var message =
-            $"Game:      {info.GameLabel}\n" +
+            $"Game:      {GameDisplayNames.GetDisplayName(info, expectedGame)}\n" +
             $"Game ID:   {(string.IsNullOrEmpty(info.GameId) ? "(unknown)" : info.GameId)}\n" +
             $"Region:    {info.RegionLabel}\n\n" +
             $"Boot line: {(string.IsNullOrEmpty(info.RawBootLine) ? "(none)" : info.RawBootLine)}";
@@ -142,40 +235,17 @@ public partial class SettingsWindow : Window {
             MessageBoxImage.Information);
     }
 
-    private void BrowseIso_Click(object sender, RoutedEventArgs e) {
-        var dialog = new OpenFileDialog {
-            Filter = "ISO Files (*.iso)|*.iso|All Files (*.*)|*.*",
-            Title = "Select UYA ISO File"
-        };
-
-        if (dialog.ShowDialog() == true) {
-            IsoPathTextBox.Text = dialog.FileName;
-            var info = GameDetector.ReadFromIso(dialog.FileName);
-            ApplyDetectedRegion(info);
-            ShowUnsupportedGameMessage(info);
-            ValidateLaunchButton();
+    private bool ShowIsoValidationMessage(GameInfo? info, SupportedGame expectedGame) {
+        if (info != null && info.Game != expectedGame) {
+            MessageBox.Show(
+                $"This ISO is {info.GameLabel}, but it was selected for the wrong game slot.",
+                "Wrong ISO",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return true;
         }
-    }
 
-    private void ApplyDetectedRegion(GameInfo? info) {
-        if (info == null)
-            return;
-
-        var regionTag = info.Region switch {
-            GameRegion.NTSC_U => "NTSC",
-            GameRegion.PAL    => "PAL",
-            _                 => null
-        };
-
-        if (regionTag == null)
-            return;
-
-        foreach (ComboBoxItem item in RegionComboBox.Items) {
-            if ((item.Tag?.ToString() ?? "") == regionTag) {
-                RegionComboBox.SelectedItem = item;
-                return;
-            }
-        }
+        return ShowUnsupportedGameMessage(info);
     }
 
     private bool ShowUnsupportedGameMessage(GameInfo? info) {
@@ -192,10 +262,34 @@ public partial class SettingsWindow : Window {
     }
 
     private bool ValidateSelectedIsoIsSupported() {
-        if (string.IsNullOrWhiteSpace(IsoPathTextBox.Text))
+        if (!HasAnyIsoPath()) {
+            MessageBox.Show(
+                "Please select an Up Your Arsenal ISO, a Deadlocked ISO, or both before saving.",
+                "Missing ISO",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return false;
+        }
+
+        return ValidateIsoSlot(Rac3IsoPathTextBox.Text, SupportedGame.Rac3, "Up Your Arsenal") &&
+               ValidateIsoSlot(Rac4IsoPathTextBox.Text, SupportedGame.Rac4, "Deadlocked");
+    }
+
+    private bool ValidateIsoSlot(string isoPath, SupportedGame expectedGame, string slotName) {
+        if (string.IsNullOrWhiteSpace(isoPath))
             return true;
 
-        return !ShowUnsupportedGameMessage(GameDetector.ReadFromIso(IsoPathTextBox.Text));
+        var info = GameDetector.ReadFromIso(isoPath);
+        if (info?.Game != expectedGame) {
+            MessageBox.Show(
+                $"The {slotName} ISO field does not contain a {slotName} ISO.",
+                "Wrong ISO",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return false;
+        }
+
+        return !ShowUnsupportedGameMessage(info);
     }
 
     private void BrowseBios_Click(object sender, RoutedEventArgs e) {

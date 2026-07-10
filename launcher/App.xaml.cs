@@ -16,11 +16,9 @@ public partial class App : Application {
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        // Check if this is first run or config is incomplete
         bool firstRun = Configuration.IsFirstRun();
         bool configIncomplete = !firstRun && !Configuration.IsConfigComplete();
 
-        // Show setup dialog if needed
         if (firstRun || configIncomplete) {
             var setupWindow = new SettingsWindow(hotkeyMode: false);
             var result = setupWindow.ShowDialog();
@@ -31,10 +29,15 @@ public partial class App : Application {
             }
         }
 
-        // Load configuration
         var config = Configuration.Load();
+        var launchGame = ResolveLaunchGame(ref config);
+        if (launchGame == null) {
+            Shutdown();
+            return;
+        }
 
-        var unsupportedMessage = GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(config.IsoPath));
+        var unsupportedMessage = GameSupport.GetUnsupportedMessage(
+            GameDetector.ReadFromIso(config.GetIsoPathForGame(launchGame.Value)));
         if (unsupportedMessage != null) {
             MessageBox.Show(
                 unsupportedMessage,
@@ -45,7 +48,6 @@ public partial class App : Application {
             return;
         }
 
-        // Setup console ONLY if enabled in config
         if (config.ShowConsole) {
             AllocConsole();
             Console.WriteLine("=== UYA Launcher Starting ===");
@@ -53,32 +55,50 @@ public partial class App : Application {
             Console.WriteLine($"Config Path: {Configuration.GetConfigPath()}");
         }
 
-        // Check for updates if auto-update is enabled
         if (config.AutoUpdate) {
             _ = Updater.CheckAndUpdateAsync(true);
         }
 
-        // Create and show launcher window
-        var launcherWindow = new LauncherWindow(config);
+        var launcherWindow = new LauncherWindow(config, launchGame.Value);
         MainWindow = launcherWindow;
 
         if (config.EmbedWindow) {
             launcherWindow.Show();
         } else {
-            // Non-embed mode: create hidden window for hotkeys
             launcherWindow.Visibility = Visibility.Hidden;
             launcherWindow.Show();
         }
     }
 
+    private static SupportedGame? ResolveLaunchGame(ref ConfigurationData config) {
+        while (true) {
+            var defaultGame = config.GetDefaultLaunchGame();
+            if (defaultGame != null && !string.IsNullOrWhiteSpace(config.GetIsoPathForGame(defaultGame.Value)))
+                return defaultGame;
+
+            var selectionWindow = new GameSelectionWindow(config);
+            var result = selectionWindow.ShowDialog();
+            if (result != true)
+                return null;
+
+            if (selectionWindow.OpenSettingsRequested) {
+                var settingsWindow = new SettingsWindow(hotkeyMode: true);
+                settingsWindow.ShowDialog();
+                config = Configuration.Load();
+                continue;
+            }
+
+            if (selectionWindow.SelectedGame != null)
+                return selectionWindow.SelectedGame;
+        }
+    }
+
     protected override void OnExit(ExitEventArgs e) {
         base.OnExit(e);
-        
-        // Cleanup console if it was allocated
+
         try {
             FreeConsole();
         } catch {
-            // Ignore errors during cleanup
         }
     }
 }

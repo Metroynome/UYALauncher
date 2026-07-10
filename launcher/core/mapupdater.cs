@@ -21,7 +21,7 @@ public static class MapUpdater
     private const string BaseUrl = "https://box.rac-horizon.com/downloads/maps";
     private static readonly HttpClient Client = new();
 
-    public static async Task UpdateMapsAsync(string isoPath, string region)
+    public static async Task UpdateMapsAsync(string isoPath)
     {
         try
         {
@@ -30,7 +30,7 @@ public static class MapUpdater
                 return;
 
             var gameInfo = GameDetector.ReadFromIso(isoPath);
-            var profile = GetMapProfile(gameInfo?.Game ?? SupportedGame.Unknown, region);
+            var profile = GetMapProfile(gameInfo);
             var mapsDir = IOPath.Combine(isoDir, profile.LocalFolder);
             Directory.CreateDirectory(mapsDir);
 
@@ -106,9 +106,9 @@ public static class MapUpdater
         }
     }
 
-    private static MapProfile GetMapProfile(SupportedGame game, string region)
+    private static MapProfile GetMapProfile(GameInfo? gameInfo)
     {
-        return game switch
+        return gameInfo?.Game switch
         {
             SupportedGame.Rac4 => new MapProfile(
                 "Ratchet: Deadlocked",
@@ -120,24 +120,18 @@ public static class MapUpdater
                 "UYA",
                 "uya",
                 "uya",
-                GetUyaSources(region))
+                GetUyaSources(gameInfo?.Region ?? GameRegion.NTSC_U))
         };
     }
 
-    private static MapSource[] GetUyaSources(string region)
+    private static MapSource[] GetUyaSources(GameRegion region)
     {
-        return region == "Both"
-            ? new[] {
-                new MapSource("NTSC", "index_uya_ntsc.txt", ""),
-                new MapSource("PAL", "index_uya_pal.txt", ".pal")
-            }
-            : new[] {
-                region == "PAL"
-                    ? new MapSource("PAL", "index_uya_pal.txt", ".pal")
-                    : new MapSource("NTSC", "index_uya_ntsc.txt", "")
-            };
+        return new[] {
+            region == GameRegion.PAL
+                ? new MapSource("PAL", "index_uya_pal.txt", ".pal")
+                : new MapSource("NTSC", "index_uya_ntsc.txt", "")
+        };
     }
-
     private static async Task<List<MapInfo>> GetMapListAsync(string indexFile)
     {
         var url = $"{BaseUrl}/{indexFile}";

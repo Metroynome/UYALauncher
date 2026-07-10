@@ -49,7 +49,7 @@ public static class PatchManager {
             Target = PatchTarget.Singleplayer,
             GameId = "SCUS-97353",
             Checksum = "45FE0CC4",
-            GameTitle = "Ratchet & Clank: Up Your Arsenal Single Player (NTSC-U)"
+            GameTitle = "Ratchet and Clank: Up Your Arsenal Single Player (NTSC-U)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac3,
@@ -58,7 +58,7 @@ public static class PatchManager {
             Target = PatchTarget.Multiplayer,
             GameId = "SCUS-97353",
             Checksum = "49536F3F",
-            GameTitle = "Ratchet & Clank: Up Your Arsenal Multiplayer (NTSC-U)"
+            GameTitle = "Ratchet and Clank: Up Your Arsenal Multiplayer (NTSC-U)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac3,
@@ -67,7 +67,7 @@ public static class PatchManager {
             Target = PatchTarget.Singleplayer,
             GameId = "SCES-52456",
             Checksum = "17125698",
-            GameTitle = "Ratchet & Clank 3 Single Player (PAL)"
+            GameTitle = "Ratchet and Clank 3 Single Player (PAL)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac3,
@@ -76,7 +76,7 @@ public static class PatchManager {
             Target = PatchTarget.Multiplayer,
             GameId = "SCES-52456",
             Checksum = "EDE8B391",
-            GameTitle = "Ratchet & Clank 3 Multiplayer (PAL)"
+            GameTitle = "Ratchet and Clank 3 Multiplayer (PAL)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac3,
@@ -85,7 +85,7 @@ public static class PatchManager {
             Target = PatchTarget.Singleplayer,
             GameId = "SCPS-15084",
             Checksum = null,
-            GameTitle = "Ratchet & Clank 3 Single Player (NTSC-J)"
+            GameTitle = "Ratchet and Clank 3 Single Player (NTSC-J)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac3,
@@ -94,7 +94,7 @@ public static class PatchManager {
             Target = PatchTarget.Multiplayer,
             GameId = "SCPS-15084",
             Checksum = null,
-            GameTitle = "Ratchet & Clank 3 Multiplayer (NTSC-J)"
+            GameTitle = "Ratchet and Clank 3 Multiplayer (NTSC-J)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac4,
@@ -121,7 +121,7 @@ public static class PatchManager {
             Target = PatchTarget.Shared,
             GameId = "SCPS-15099",
             Checksum = null,
-            GameTitle = "Ratchet & Clank 4th Special Gift Package (NTSC-J alt)"
+            GameTitle = "Ratchet and Clank 4th Special Gift Package (NTSC-J alt)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac4,
@@ -130,7 +130,7 @@ public static class PatchManager {
             Target = PatchTarget.Shared,
             GameId = "SCPS-15100",
             Checksum = null,
-            GameTitle = "Ratchet & Clank 4th (NTSC-J The Best)"
+            GameTitle = "Ratchet and Clank 4th (NTSC-J The Best)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac4,
@@ -139,7 +139,7 @@ public static class PatchManager {
             Target = PatchTarget.Shared,
             GameId = "SCAJ-20157",
             Checksum = null,
-            GameTitle = "Ratchet & Clank 4th Special Gift Package (NTSC-Asia)"
+            GameTitle = "Ratchet and Clank 4th Special Gift Package (NTSC-Asia)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac4,
@@ -148,7 +148,7 @@ public static class PatchManager {
             Target = PatchTarget.Shared,
             GameId = "SCKA-20060",
             Checksum = null,
-            GameTitle = "Ratchet & Clank: Gonggu Jeonsa Wigi Ilbal (NTSC-K)"
+            GameTitle = "Ratchet and Clank: Gonggu Jeonsa Wigi Ilbal (NTSC-K)"
         },
         new PatchDiscProfile {
             Game = SupportedGame.Rac4,
@@ -157,7 +157,7 @@ public static class PatchManager {
             Target = PatchTarget.Shared,
             GameId = "SCKA-20108",
             Checksum = null,
-            GameTitle = "Ratchet & Clank: Gonggu Jeonsa Wigi Ilbal BigHit (NTSC-K)"
+            GameTitle = "Ratchet and Clank: Gonggu Jeonsa Wigi Ilbal BigHit (NTSC-K)"
         },
     };
 
@@ -232,14 +232,38 @@ public static class PatchManager {
     };
 
     public static void ApplyPatches(ConfigurationData config) {
-        var gameInfo = GameDetector.ReadFromIso(config.IsoPath);
-        var profiles = GetProfilesForConfig(gameInfo, config.Region);
-        if (profiles.Count == 0) {
-            Console.WriteLine("No patch profiles matched the selected game/region.");
+        bool matchedAnyProfile = false;
+
+        foreach (var isoPath in config.GetConfiguredIsoPaths()) {
+            if (ApplyPatchesForIso(config, isoPath))
+                matchedAnyProfile = true;
+        }
+
+        if (!matchedAnyProfile)
+            Console.WriteLine("No patch profiles matched any configured ISO.");
+    }
+
+    public static void ApplyPatches(ConfigurationData config, SupportedGame game) {
+        var isoPath = config.GetIsoPathForGame(game);
+        if (string.IsNullOrWhiteSpace(isoPath)) {
+            Console.WriteLine($"No ISO path configured for {game}; skipping patches.");
             return;
         }
 
+        if (!ApplyPatchesForIso(config, isoPath))
+            Console.WriteLine($"No patch profiles matched {isoPath}.");
+    }
+
+    private static bool ApplyPatchesForIso(ConfigurationData config, string isoPath) {
+        var gameInfo = GameDetector.ReadFromIso(isoPath);
+        var profiles = GetProfilesForConfig(gameInfo, config.Region);
+        if (profiles.Count == 0) {
+            Console.WriteLine($"No patch profiles matched {isoPath}.");
+            return false;
+        }
+
         ManagePnachPatches(config, profiles);
+        return true;
     }
 
     private static void ManagePnachPatches(ConfigurationData config, IReadOnlyList<PatchDiscProfile> profiles) {

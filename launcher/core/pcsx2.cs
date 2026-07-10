@@ -72,29 +72,38 @@ public static class PCSX2Manager {
     private const int SW_SHOW = 5;
 
     public static bool Launch(ConfigurationData config) {
+        var launchGame = config.GetDefaultLaunchGame() ?? SupportedGame.Rac4;
+        return Launch(config, launchGame);
+    }
+
+    public static bool Launch(ConfigurationData config, SupportedGame launchGame) {
         try {
+            var isoPath = config.GetIsoPathForGame(launchGame);
+            if (string.IsNullOrWhiteSpace(isoPath))
+                isoPath = config.GetLaunchIsoPath();
+
             Console.WriteLine("=== PCSX2 Launch Debug ===");
-            Console.WriteLine($"ISO Path: {config.IsoPath}");
+            Console.WriteLine($"ISO Path: {isoPath}");
             Console.WriteLine($"BIOS Path: {config.BiosPath}");
             
             // Use hardcoded PCSX2 path from data/emulator folder
             var pcsx2Path = Configuration.GetPcsx2Path();
             Console.WriteLine($"PCSX2 Path: {pcsx2Path}");
-            Console.WriteLine($"ISO Exists: {System.IO.File.Exists(config.IsoPath)}");
+            Console.WriteLine($"ISO Exists: {System.IO.File.Exists(isoPath)}");
             Console.WriteLine($"PCSX2 Exists: {System.IO.File.Exists(pcsx2Path)}");
             Console.WriteLine($"BIOS Exists: {System.IO.File.Exists(config.BiosPath)}");
 
             // Check if files exist
-            if (!System.IO.File.Exists(config.IsoPath)) {
+            if (!System.IO.File.Exists(isoPath)) {
                 MessageBox.Show(
-                    $"ISO file not found:\n{config.IsoPath}",
+                    $"ISO file not found:\n{isoPath}",
                     "Launch Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 return false;
             }
 
-            var unsupportedMessage = GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(config.IsoPath));
+            var unsupportedMessage = GameSupport.GetUnsupportedMessage(GameDetector.ReadFromIso(isoPath));
             if (unsupportedMessage != null) {
                 MessageBox.Show(
                     unsupportedMessage,
@@ -204,7 +213,7 @@ public static class PCSX2Manager {
                 arguments += " -fullscreen";
 
             // Add ISO path
-            arguments += $" -- \"{config.IsoPath}\"";
+            arguments += $" -- \"{isoPath}\"";
 
             Console.WriteLine("=== PCSX2 Launch Command ===");
             Console.WriteLine($"Executable: {pcsx2Path}");

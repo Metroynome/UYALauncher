@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:UYALauncher"
         xmlns:nav="clr-namespace:System.Windows.Navigation;assembly=PresentationFramework"
-        Title="UYA Launcher - Settings" 
-        Height="600" 
+        Title="UYA Launcher - Settings"
+        Height="600"
         Width="600"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize">
@@ -17,14 +17,14 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <TextBlock Grid.Row="0" 
-                   Text="UYA Launcher Settings" 
-                   FontSize="24" 
+        <TextBlock Grid.Row="0"
+                   Text="UYA Launcher Settings"
+                   FontSize="24"
                    FontWeight="Bold"
                    Margin="0,0,0,20"/>
 
         <!-- Tab Control -->
-        <TabControl Grid.Row="1" 
+        <TabControl Grid.Row="1"
                     x:Name="SettingsTabs"
                     Padding="10">
 
@@ -32,43 +32,104 @@
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="15">
-                        <!-- ISO Path -->
-                        <Grid Margin="0,0,0,20">
+                        <!-- ISO Paths -->
+                        <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>   <!-- Label -->
-                                <ColumnDefinition Width="*"/>      <!-- TextBox -->
-                                <ColumnDefinition Width="Auto"/>   <!-- Browse Button -->
-                                <ColumnDefinition Width="Auto"/>   <!-- Get Game Info Button -->
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
+                            <Grid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Clear ISO Path" Click="ClearRac3IsoPath_Click"/>
+                                    <MenuItem Header="Get Game Info" Click="GetRac3GameInfo_Click"/>
+                                </ContextMenu>
+                            </Grid.ContextMenu>
 
-                            <TextBlock Text="Game ISO File:" 
+                            <TextBlock Text="Up Your Arsenal ISO:"
                                     Style="{StaticResource Label}"
                                     VerticalAlignment="Center"
                                     Margin="0,0,10,0"
                                     Grid.Column="0"/>
 
-                            <TextBox x:Name="IsoPathTextBox"
-                                    Grid.Column="1"
-                                    Style="{StaticResource ModernTextBox}"
-                                    IsReadOnly="True"
-                                    Margin="0,0,10,0"/>
+                            <TextBox x:Name="Rac3IsoPathTextBox"
+                                     Grid.Column="1"
+                                     Style="{StaticResource ModernTextBox}"
+                                     IsReadOnly="True"
+                                     Margin="0,0,10,0">
+                                <TextBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Clear ISO Path" Click="ClearRac3IsoPath_Click"/>
+                                        <MenuItem Header="Get Game Info" Click="GetRac3GameInfo_Click"/>
+                                    </ContextMenu>
+                                </TextBox.ContextMenu>
+                            </TextBox>
 
-                            <Button x:Name="BrowseIsoButton"
+                            <Button x:Name="BrowseRac3IsoButton"
                                     Grid.Column="2"
                                     Content="Browse"
                                     Style="{StaticResource PrimarySmallButton}"
-                                    Click="BrowseIso_Click"
-                                    MinWidth="100"
-                                    Margin="0,0,10,0"/>
-
-                            <Button x:Name="GetGameInfoButton"
-                                    Grid.Column="3"
-                                    Content="Get Game Info"
-                                    Style="{StaticResource SecondaryButton}"
-                                    Click="GetGameInfo_Click"
-                                    MinWidth="120"/>
+                                    Click="BrowseRac3Iso_Click"
+                                    MinWidth="100"/>
                         </Grid>
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Clear ISO Path" Click="ClearRac4IsoPath_Click"/>
+                                    <MenuItem Header="Get Game Info" Click="GetRac4GameInfo_Click"/>
+                                </ContextMenu>
+                            </Grid.ContextMenu>
 
+                            <TextBlock Text="Deadlocked ISO:"
+                                    Style="{StaticResource Label}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,10,0"
+                                    Grid.Column="0"/>
+                            <TextBox x:Name="Rac4IsoPathTextBox"
+                                     Grid.Column="1"
+                                     Style="{StaticResource ModernTextBox}"
+                                     IsReadOnly="True"
+                                     Margin="0,0,10,0">
+                                <TextBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Clear ISO Path" Click="ClearRac4IsoPath_Click"/>
+                                        <MenuItem Header="Get Game Info" Click="GetRac4GameInfo_Click"/>
+                                    </ContextMenu>
+                                </TextBox.ContextMenu>
+                            </TextBox>
+
+                            <Button x:Name="BrowseRac4IsoButton"
+                                    Grid.Column="2"
+                                    Content="Browse"
+                                    Style="{StaticResource PrimarySmallButton}"
+                                    Click="BrowseRac4Iso_Click"
+                                    MinWidth="100"/>
+                        </Grid>
+                        <!-- Default Game -->
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="Default Game:"
+                                    Style="{StaticResource Label}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,10,0"
+                                    Grid.Column="0"/>
+
+                            <ComboBox x:Name="DefaultGameComboBox"
+                                    Grid.Column="1"
+                                    Style="{StaticResource ModernComboBox}"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right"
+                                    MinWidth="400"/>
+                        </Grid>
                         <!-- PS2 BIOS -->
                         <Grid Margin="0,0,0,20">
                             <Grid.ColumnDefinitions>
@@ -77,61 +138,36 @@
                                 <ColumnDefinition Width="Auto"/>   <!-- Button -->
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Text="PS2 BIOS File:" 
+                            <TextBlock Text="PS2 BIOS File:"
                                     Style="{StaticResource Label}"
                                     VerticalAlignment="Center"
                                     Margin="0,0,10,0"
                                     Grid.Column="0"/>
 
-                            <TextBox x:Name="BiosPathTextBox" 
-                                     Grid.Column="1" 
+                            <TextBox x:Name="BiosPathTextBox"
+                                     Grid.Column="1"
                                      Style="{StaticResource ModernTextBox}"
                                      IsReadOnly="True"
                                      Margin="0,0,10,0"/>
 
-                            <Button x:Name="BrowseBiosButton" 
-                                    Grid.Column="2" 
-                                    Content="Browse" 
+                            <Button x:Name="BrowseBiosButton"
+                                    Grid.Column="2"
+                                    Content="Browse"
                                     Style="{StaticResource PrimarySmallButton}"
                                     Click="BrowseBios_Click"
                                     MinWidth="100"/>
                         </Grid>
 
-                        <!-- Region -->
-                        <Grid Margin="0,0,0,20">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>   <!-- Label -->
-                                <ColumnDefinition Width="*"/>      <!-- ComboBox -->
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Text="Region:" 
-                                    Style="{StaticResource Label}"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,10,0"
-                                    Grid.Column="0"/>
-
-                            <ComboBox x:Name="RegionComboBox"
-                                    Grid.Column="1"
-                                    Style="{StaticResource ModernComboBox}"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Right"
-                                    MinWidth="400">
-                                <ComboBoxItem Content="NTSC-U (North America)" Tag="NTSC" />
-                                <ComboBoxItem Content="PAL (Europe)" Tag="PAL" />
-                                <!-- <ComboBoxItem Content="Both" Tag="Both" /> -->
-                            </ComboBox>
-                        </Grid>
-
                         <!-- Auto Update -->
-                        <CheckBox x:Name="AutoUpdateCheckBox" 
-                                  Content="Auto Update Launcher" 
+                        <CheckBox x:Name="AutoUpdateCheckBox"
+                                  Content="Auto Update Launcher"
                                   Style="{StaticResource ModernCheckBox}"
                                   IsChecked="True"
                                   Margin="0,0,0,10"/>
 
                         <!-- Fullscreen -->
-                        <CheckBox x:Name="FullscreenCheckBox" 
-                                  Content="Start in Fullscreen" 
+                        <CheckBox x:Name="FullscreenCheckBox"
+                                  Content="Start in Fullscreen"
                                   Style="{StaticResource ModernCheckBox}"
                                   IsChecked="True"
                                   Margin="0,0,0,10"/>
@@ -144,7 +180,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="15">
 
-                        <TextBlock Text="Game Patches" 
+                        <TextBlock Text="Game Patches"
                                 Style="{StaticResource SectionHeader}"
                                 Margin="0,0,0,15"/>
 
@@ -178,17 +214,17 @@
             <TabItem Header="Advanced">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="15">
-                        <TextBlock Text="Advanced Settings" 
+                        <TextBlock Text="Advanced Settings"
                                    Style="{StaticResource SectionHeader}"/>
 
-                        <CheckBox x:Name="EmbedWindowCheckBox" 
-                                  Content="Embed PCSX2 in Launcher Window" 
+                        <CheckBox x:Name="EmbedWindowCheckBox"
+                                  Content="Embed PCSX2 in Launcher Window"
                                   Style="{StaticResource ModernCheckBox}"
                                   IsChecked="True"
                                   Margin="0,0,0,15"/>
 
-                        <CheckBox x:Name="ShowConsoleCheckBox" 
-                                  Content="Show Debug Console" 
+                        <CheckBox x:Name="ShowConsoleCheckBox"
+                                  Content="Show Debug Console"
                                   Style="{StaticResource ModernCheckBox}"
                                   Margin="0,0,0,15"/>
 
@@ -325,23 +361,23 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            
+
             <!-- Version on the left -->
-            <StackPanel Grid.Column="0" 
-                        Orientation="Horizontal" 
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
                         VerticalAlignment="Center">
-                <TextBlock Text="Version: " 
-                           FontSize="12" 
+                <TextBlock Text="Version: "
+                           FontSize="12"
                            Foreground="{StaticResource TextSecondaryBrush}"/>
-                <TextBlock x:Name="VersionTextBlock" 
-                           Text="-.-.-" 
-                           FontSize="12" 
+                <TextBlock x:Name="VersionTextBlock"
+                           Text="-.-.-"
+                           FontSize="12"
                            Foreground="{StaticResource TextSecondaryBrush}"/>
             </StackPanel>
-            
+
             <!-- Buttons on the right -->
-            <StackPanel Grid.Column="1" 
-                        Orientation="Horizontal" 
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
                         HorizontalAlignment="Right">
                 <Button x:Name="CheckUpdatesButton"
                         Content="Check for Updates"

@@ -42,15 +42,44 @@ public class GameInfo {
     };
 
     public string GameLabel => Game switch {
-        SupportedGame.Rac1 => "Ratchet & Clank",
-        SupportedGame.Rac2 => "Ratchet & Clank: Going Commando",
-        SupportedGame.Rac3 => "Ratchet & Clank: Up Your Arsenal",
+        SupportedGame.Rac1 => "Ratchet and Clank",
+        SupportedGame.Rac2 => "Ratchet and Clank: Going Commando",
+        SupportedGame.Rac3 => "Ratchet and Clank: Up Your Arsenal",
         SupportedGame.Rac4 => "Ratchet: Deadlocked",
         _                  => "Unknown"
     };
 
     public override string ToString() =>
         $"Game={GameLabel}, GameID={GameId}, Region={RegionLabel}";
+}
+
+public static class GameDisplayNames {
+    public static string GetDisplayName(GameInfo? info, SupportedGame fallbackGame) {
+        if (info == null)
+            return GetFallbackName(fallbackGame);
+
+        return info.Game switch {
+            SupportedGame.Rac3 => info.Region == GameRegion.NTSC_U
+                ? "Ratchet and Clank: Up Your Arsenal"
+                : "Ratchet and Clank 3",
+            SupportedGame.Rac4 => info.Region switch {
+                GameRegion.PAL    => "Ratchet: Gladiator",
+                GameRegion.NTSC_J => "Ratchet and Clank 4th",
+                GameRegion.NTSC_A => "Ratchet and Clank 4th Special Gift Package",
+                GameRegion.NTSC_K => "Ratchet and Clank: Gonggu Jeonsa Wigi Ilbal",
+                _                 => "Ratchet: Deadlocked"
+            },
+            _ => info.GameLabel
+        };
+    }
+
+    private static string GetFallbackName(SupportedGame game) {
+        return game switch {
+            SupportedGame.Rac3 => "Ratchet and Clank: Up Your Arsenal",
+            SupportedGame.Rac4 => "Ratchet: Deadlocked",
+            _                  => "Unknown"
+        };
+    }
 }
 
 public static class GameDetector {
@@ -158,17 +187,17 @@ public static class GameDetector {
 
     private static SupportedGame GameFromGameId(string gameId) {
         return gameId.ToUpperInvariant() switch {
-            // Ratchet & Clank / RAC1
+            // Ratchet and Clank / RAC1
             "SCUS-97199" or "SCES-50916" or "SCED-50916" or
             "SCPS-15037" or "SCPS-19211" or "SCPS-19310" or
             "SCAJ-20001" or "PBPX-95516" => SupportedGame.Rac1,
 
-            // Ratchet & Clank: Going Commando / RAC2
+            // Ratchet and Clank: Going Commando / RAC2
             "SCUS-97268" or "SCUS-97513" or "SCES-51607" or
             "SCPS-15056" or "SCPS-19302" or "SCPS-19317" or
             "SCAJ-20052" or "SCKA-20011" or "SCKA-20046" => SupportedGame.Rac2,
 
-            // Ratchet & Clank: Up Your Arsenal / RAC3
+            // Ratchet and Clank: Up Your Arsenal / RAC3
             "SCUS-97353" or "SCUS-97518" or "SCES-52456" or
             "SCPS-15084" or "SCPS-19309" or "SCAJ-20109" or
             "SCKA-20037" => SupportedGame.Rac3,

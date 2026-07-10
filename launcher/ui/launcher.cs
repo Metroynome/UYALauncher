@@ -9,6 +9,7 @@ namespace UYALauncher;
 
 public class LauncherWindow : Window {
     private readonly ConfigurationData _config;
+    private readonly SupportedGame _launchGame;
     private const int HOTKEY_F11 = 9001;
     private const int HOTKEY_CTRL_F11 = 9002;
     private static SettingsWindow? _openSettingsWindow = null;
@@ -24,8 +25,9 @@ public class LauncherWindow : Window {
     private const uint MOD_CONTROL = 0x0002;
     private const uint VK_F11 = 0x7A;
 
-    public LauncherWindow(ConfigurationData config) {
+    public LauncherWindow(ConfigurationData config, SupportedGame launchGame) {
         _config = config;
+        _launchGame = launchGame;
         Title = "UYA Launcher";
         Width = 960;
         Height = 720;
@@ -126,13 +128,17 @@ public class LauncherWindow : Window {
     }
 
     private async Task UpdateMapsAsync() {
-        if (!string.IsNullOrEmpty(_config.IsoPath)) {
-            try {
-                await MapUpdater.UpdateMapsAsync(_config.IsoPath, _config.Region);
-                Console.WriteLine("Map update completed via hotkey");
-            } catch (Exception ex) {
-                Console.WriteLine($"Map update error: {ex.Message}");
-            }
+        var isoPath = _config.GetIsoPathForGame(_launchGame);
+        if (string.IsNullOrWhiteSpace(isoPath)) {
+            Console.WriteLine($"No ISO path configured for {_launchGame}, skipping map updates");
+            return;
+        }
+
+        try {
+            await MapUpdater.UpdateMapsAsync(isoPath);
+            Console.WriteLine($"Map update completed for {isoPath}");
+        } catch (Exception ex) {
+            Console.WriteLine($"Map update error for {isoPath}: {ex.Message}");
         }
     }
 
@@ -174,30 +180,24 @@ public class LauncherWindow : Window {
 
     private async void OnLoaded(object sender, RoutedEventArgs e) {
         Console.WriteLine("=== LauncherWindow.OnLoaded ===");
-        Console.WriteLine($"ISO Path: '{_config.IsoPath}'");
+        Console.WriteLine($"Selected Game: '{_launchGame}'");
+        Console.WriteLine($"Launch ISO Path: '{_config.GetIsoPathForGame(_launchGame)}'");
+        Console.WriteLine($"Up Your Arsenal ISO Path: '{_config.Rac3IsoPath}'");
+        Console.WriteLine($"Deadlocked ISO Path: '{_config.Rac4IsoPath}'");
         Console.WriteLine($"BIOS Path: '{_config.BiosPath}'");
         Console.WriteLine($"PCSX2 Path: '{Configuration.GetPcsx2Path()}'");
         Console.WriteLine($"Region: '{_config.Region}'");
         Console.WriteLine($"EmbedWindow: {_config.EmbedWindow}");
         Console.WriteLine($"ShowConsole: {_config.ShowConsole}");
         
-        // Update maps first if ISO is configured
-        if (!string.IsNullOrEmpty(_config.IsoPath)) {
-            Console.WriteLine("Checking for custom map updates...");
-            try {
-                await MapUpdater.UpdateMapsAsync(_config.IsoPath, _config.Region);
-                Console.WriteLine("Map update completed");
-            } catch (Exception ex) {
-                Console.WriteLine($"Map update error: {ex.Message}");
-            }
-        } else {
-            Console.WriteLine("No ISO path configured, skipping map updates");
-        }
+        // Update maps first if any ISO is configured
+        Console.WriteLine("Checking for custom map updates...");
+        await UpdateMapsAsync();
 
         // Apply patches AFTER map updates, BEFORE launching PCSX2
         Console.WriteLine("Applying patches...");
         try {
-            PatchManager.ApplyPatches(_config);
+            PatchManager.ApplyPatches(_config, _launchGame);
             Console.WriteLine("Patches applied successfully");
         } catch (Exception ex) {
             Console.WriteLine($"Patch error: {ex.Message}");
@@ -205,7 +205,7 @@ public class LauncherWindow : Window {
 
         // Launch PCSX2
         Console.WriteLine("Attempting to launch PCSX2...");
-        if (!PCSX2Manager.Launch(_config)) {
+        if (!PCSX2Manager.Launch(_config, _launchGame)) {
             Console.WriteLine("PCSX2 launch failed!");
             Close();
             return;
